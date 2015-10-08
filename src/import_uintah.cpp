@@ -372,5 +372,16 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 	std::cout << "Position range from { " << x_range[0] << ", " << y_range[0]
 		<< ", " << z_range[0] << " } to { " << x_range[1] << ", "
 		<< y_range[1] << ", " << z_range[1] << " }\n";
+	// TODO: Sort the positions, note that this also means the attributes must be re-ordered
+	// in the same way so that everything still matches.
+	// A super lazy possibility is to use a different internal loading data structure
+	// that would be like:
+	//
+	// UintahDataPoint {
+	//     x, y, z;
+	//     attributes_hashmap
+	// }
+	//
+	// Then sort these by position and flatten them. Performance will probably suck a bit.
 }
 
