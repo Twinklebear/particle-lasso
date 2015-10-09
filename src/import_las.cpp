@@ -22,7 +22,7 @@ void import_las(const FileName &file_name, ParticleModel &model){
 	auto &positions = model["positions"];
 	auto &colors = model["colors"];
 	positions.reserve(header.GetPointRecordsCount() * 3);
-	attribs.reserve(header.GetPointRecordsCount());
+	colors.reserve(header.GetPointRecordsCount());
 	int n_discarded = 0;
 	const float inv_max_color = 1.f / 65536.f;
 	// Unfortunately the libLAS designers prefer Java style iterators
