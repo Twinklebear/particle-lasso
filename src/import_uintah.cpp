@@ -10,7 +10,8 @@
 using namespace tinyxml2;
 
 struct UintahParticle {
-	double x, y, z;
+	float x, y, z;
+	std::unordered_map<std::string, float> attribs;
 };
 
 bool uintah_is_big_endian = false;
@@ -89,27 +90,27 @@ bool read_particles(const FileName &file_name, std::vector<float> &positions, co
 	}
 	fseek(fp, start, SEEK_SET);
 	size_t len = end - start;
-	if (len != num_particles * sizeof(UintahParticle)){
+	if (len != num_particles * sizeof(double) * 3){
 		std::cout << "Length of data != expected length of particle data\n";
 		return false;
 		fclose(fp);
 	}
 
+	double position[3];
 	for (size_t i = 0; i < num_particles; ++i){
-		UintahParticle p;
-		if (fread(&p, sizeof(p), 1, fp) != 1){
+		if (fread(position, sizeof(position), 1, fp) != 1){
 			std::cout << "Error reading particle from file\n";
 			fclose(fp);
 			return false;
 		}
 		if (uintah_is_big_endian){
-			p.x = ntohd(p.x);
-			p.y = ntohd(p.y);
-			p.z = ntohd(p.z);
+			position[0] = ntohd(position[0]);
+			position[1] = ntohd(position[1]);
+			position[2] = ntohd(position[2]);
 		}
-		positions.push_back(static_cast<float>(p.x));
-		positions.push_back(static_cast<float>(p.y));
-		positions.push_back(static_cast<float>(p.z));
+		positions.push_back(static_cast<float>(position[0]));
+		positions.push_back(static_cast<float>(position[1]));
+		positions.push_back(static_cast<float>(position[2]));
 	}
 	fclose(fp);
 	return true;
@@ -343,6 +344,58 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 		std::cout << "Error reading Uintah data\n";
 		std::exit(1);
 	}
+
+	// TODO: Sort the positions, note that this also means the attributes must be re-ordered
+	// in the same way so that everything still matches.
+	// A super lazy possibility is to use a different internal loading data structure
+	// that would be like:
+	//
+	// UintahDataPoint {
+	//     x, y, z;
+	//     attributes_hashmap
+	// }
+	//
+	// Then sort these by position and flatten them. Performance will probably suck a bit.
+	// TODO: This is basically the worst possible way to sort the data, come up with something better.
+	std::vector<UintahParticle> particles;
+	const auto &positions = model["positions"];
+
+	std::cout << "Read " << positions.size() / 3 << " particles, now sorting\n";
+	particles.reserve(positions.size() / 3);
+	for (size_t i = 0; i < positions.size() / 3; ++i){
+		UintahParticle p;
+		p.x = positions[i * 3];
+		p.y = positions[i * 3 + 1];
+		p.z = positions[i * 3 + 2];
+		for (const auto &attrib : model){
+			if (attrib.first != "positions"){
+				p.attribs[attrib.first] = attrib.second[i];
+			}
+		}
+		particles.push_back(p);
+	}
+	// Sort the data
+	std::sort(particles.begin(), particles.end(),
+		[](const UintahParticle &a, const UintahParticle &b){
+			if (a.x == b.x){
+				if (a.y == b.y){
+					return a.z < b.z;
+				}
+				return a.y < b.y;
+			}
+			return a.x < b.x;
+		});
+	// Now go back through and write it back to our arrays
+	for (size_t i = 0; i < particles.size(); ++i){
+		const auto &p = particles[i];
+		model["positions"][i * 3] = p.x;
+		model["positions"][i * 3 + 1] = p.y;
+		model["positions"][i * 3 + 2] = p.z;
+		for (const auto &attrib : p.attribs){
+			model[attrib.first][i] = attrib.second;
+		}
+	}
+
 	float x_range[2] = { model["positions"][0], model["positions"][0] };
 	float y_range[2] = { model["positions"][1], model["positions"][1] };
 	float z_range[2] = { model["positions"][2], model["positions"][2] };
@@ -369,19 +422,8 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 			z_range[1] = *it;
 		}
 	}
-	std::cout << "Position range from { " << x_range[0] << ", " << y_range[0]
+	std::cout << "Positions range from { " << x_range[0] << ", " << y_range[0]
 		<< ", " << z_range[0] << " } to { " << x_range[1] << ", "
 		<< y_range[1] << ", " << z_range[1] << " }\n";
-	// TODO: Sort the positions, note that this also means the attributes must be re-ordered
-	// in the same way so that everything still matches.
-	// A super lazy possibility is to use a different internal loading data structure
-	// that would be like:
-	//
-	// UintahDataPoint {
-	//     x, y, z;
-	//     attributes_hashmap
-	// }
-	//
-	// Then sort these by position and flatten them. Performance will probably suck a bit.
 }
 
