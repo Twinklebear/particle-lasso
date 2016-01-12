@@ -4,6 +4,10 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <fstream>
+#include <memory>
+#include <iostream>
+#include <typeinfo>
 
 struct vec3f {
 	float x, y, z;
@@ -24,7 +28,24 @@ struct FileName {
 };
 std::ostream& operator<<(std::ostream &os, const FileName &f);
 
-using ParticleModel = std::unordered_map<std::string, std::vector<float>>;
+struct Data {
+	// Dump the data in binary format to the output stream as raw data
+	virtual void write(std::ofstream &os) const = 0;
+	virtual ~Data(){}
+};
+
+template<typename T>
+struct DataT : Data {
+	std::vector<T> data;
+
+	void write(std::ofstream &os) const override {
+		std::cout << "Writing " << data.size() << " " << typeid(T).name()
+			<< ", file is " << sizeof(T) * data.size() << " bytes\n";
+		os.write(reinterpret_cast<const char*>(data.data()), sizeof(T) * data.size());
+	}
+};
+
+using ParticleModel = std::unordered_map<std::string, std::unique_ptr<Data>>;
 
 #endif
 
