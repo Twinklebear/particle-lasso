@@ -31,7 +31,7 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 	auto velocity = std::make_unique<DataT<float>>();
 	velocity->data.resize(header.size * 3);
 	auto concentration = std::make_unique<DataT<float>>();
-	concentration->data.resize(header.size * 3);
+	concentration->data.resize(header.size);
 
 	file.seekg(4, std::ios_base::cur);
 	file.read(reinterpret_cast<char*>(positions->data.data()),
