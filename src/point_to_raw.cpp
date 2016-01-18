@@ -6,7 +6,7 @@
 #include <vector>
 #include "types.h"
 #include "import_las.h"
-//#include "import_uintah.h"
+#include "import_uintah.h"
 
 int main(int argc, char **argv){
 	if (argc < 3){
@@ -23,9 +23,7 @@ int main(int argc, char **argv){
 		import_las(input, model);
 	} else if (input.extension() == "xml"){
 		std::cout << "Converting Uintah data\n";
-		std::cout << "TODO: Update the Uintah exporter!\n";
-		assert(false);
-		//import_uintah(input, model);
+		import_uintah(input, model);
 	}
 	if (model.empty()){
 		std::cout << "Error: No data loaded\n";

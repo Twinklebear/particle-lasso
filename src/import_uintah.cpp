@@ -79,8 +79,10 @@ float ntohf(float f){
 	}
 	return ret;
 }
-bool read_particles(const FileName &file_name, std::vector<float> &positions, const size_t num_particles,
-				    const size_t start, const size_t end){
+bool read_particles(const FileName &file_name, Data *pos_data, const size_t num_particles,
+		const size_t start, const size_t end){
+	auto *positions = dynamic_cast<DataT<float>*>(pos_data);
+	assert(positions);
 	// TODO: Would mmap'ing the file at the start and keeping each new file we encounter
 	// mapped be faster than fopen/fread/fclose?
 	FILE *fp = fopen(file_name.file_name.c_str(), "rb");
@@ -108,16 +110,17 @@ bool read_particles(const FileName &file_name, std::vector<float> &positions, co
 			position[1] = ntohd(position[1]);
 			position[2] = ntohd(position[2]);
 		}
-		positions.push_back(static_cast<float>(position[0]));
-		positions.push_back(static_cast<float>(position[1]));
-		positions.push_back(static_cast<float>(position[2]));
+		positions->data.push_back(static_cast<float>(position[0]));
+		positions->data.push_back(static_cast<float>(position[1]));
+		positions->data.push_back(static_cast<float>(position[2]));
 	}
 	fclose(fp);
 	return true;
 }
-template<typename T>
-bool read_particle_attribute(const FileName &file_name, std::vector<float> &attribs, const size_t num_particles,
-							 const size_t start, const size_t end){
+template<typename In, typename Out = In>
+bool read_particle_attribute(const FileName &file_name, Data *attrib_data, const size_t num_particles,
+		const size_t start, const size_t end){
+	auto attribs = dynamic_cast<DataT<Out>*>(attrib_data);
 	// TODO: Would mmap'ing the file at the start and keeping each new file we encounter
 	// mapped be faster than fopen/fread/fclose?
 	FILE *fp = fopen(file_name.file_name.c_str(), "rb");
@@ -127,21 +130,21 @@ bool read_particle_attribute(const FileName &file_name, std::vector<float> &attr
 	}
 	fseek(fp, start, SEEK_SET);
 	size_t len = end - start;
-	if (len != num_particles * sizeof(T)){
+	if (len != num_particles * sizeof(In)){
 		std::cout << "Length of data != expected length of particle data\n";
 		return false;
 		fclose(fp);
 	}
 
-	std::vector<T> data(num_particles, T());
-	if (fread(data.data(), sizeof(T), num_particles, fp) != num_particles){
+	std::vector<In> data(num_particles, In());
+	if (fread(data.data(), sizeof(In), num_particles, fp) != num_particles){
 		std::cout << "Error reading particle attribute from file\n";
 		fclose(fp);
 		return false;
 	}
 	fclose(fp);
-	std::transform(data.begin(), data.end(), std::back_inserter(attribs),
-			[](const T &t){ return static_cast<float>(t); });
+	std::transform(data.begin(), data.end(), std::back_inserter(attribs->data),
+			[](const In &t){ return static_cast<Out>(t); });
 	return true;
 }
 bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, ParticleModel &model){
@@ -159,9 +162,9 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 	// Note: might need uint64_t if we want to run on windows as long there is only
 	// 4 bytes
 	size_t index = std::numeric_limits<size_t>::max();
-   	size_t start = std::numeric_limits<size_t>::max();
+	size_t start = std::numeric_limits<size_t>::max();
 	size_t end = std::numeric_limits<size_t>::max();
-   	size_t patch = std::numeric_limits<size_t>::max();
+	size_t patch = std::numeric_limits<size_t>::max();
 	size_t num_particles = 0;
 	for (XMLNode *c = elem->FirstChild(); c; c = c->NextSibling()){
 		XMLElement *e = c->ToElement();
@@ -217,24 +220,19 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 		}
 	}
 	if (num_particles > 0){
+		if (model.find(variable) == model.end()){
+			model[variable] = std::make_unique<DataT<float>>();
+		}
 		// Particle positions are p.x
 		if (variable == "p.x"){
-			if (!read_particles(base_path.join(FileName(file_name)), model["positions"], num_particles, start, end)){
-				return false;
-			}
+			return read_particles(base_path.join(FileName(file_name)), model["positions"].get(),
+						num_particles, start, end);
 		} else if (type == "ParticleVariable<double>"){
-			if (!read_particle_attribute<double>(base_path.join(FileName(file_name)), model[variable],
-						num_particles, start, end))
-			{
-				return false;
-			}
-
+			return read_particle_attribute<double, float>(base_path.join(FileName(file_name)),
+					model[variable].get(), num_particles, start, end);
 		} else if (type == "ParticleVariable<float>"){
-			if (!read_particle_attribute<float>(base_path.join(FileName(file_name)), model[variable],
-						num_particles, start, end))
-			{
-				return false;
-			}
+			return read_particle_attribute<float>(base_path.join(FileName(file_name)),
+					model[variable].get(), num_particles, start, end);
 		}
 	}
 	return true;
@@ -345,84 +343,25 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 		std::exit(1);
 	}
 
-	// TODO: Sort the positions, note that this also means the attributes must be re-ordered
-	// in the same way so that everything still matches.
-	// A super lazy possibility is to use a different internal loading data structure
-	// that would be like:
-	//
-	// UintahDataPoint {
-	//     x, y, z;
-	//     attributes_hashmap
-	// }
-	//
-	// Then sort these by position and flatten them. Performance will probably suck a bit.
-	// TODO: This is basically the worst possible way to sort the data, come up with something better.
-	std::vector<UintahParticle> particles;
-	const auto &positions = model["positions"];
+	// Find the bounds of the data's positions
+	auto positions = dynamic_cast<DataT<float>*>(model["positions"].get());
+	float x_range[2] = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max() };
+	float y_range[2] = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max() };
+	float z_range[2] = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max() };
 
-	std::cout << "Read " << positions.size() / 3 << " particles, now sorting\n";
-	particles.reserve(positions.size() / 3);
-	for (size_t i = 0; i < positions.size() / 3; ++i){
-		UintahParticle p;
-		p.x = positions[i * 3];
-		p.y = positions[i * 3 + 1];
-		p.z = positions[i * 3 + 2];
-		for (const auto &attrib : model){
-			if (attrib.first != "positions"){
-				p.attribs[attrib.first] = attrib.second[i];
-			}
-		}
-		particles.push_back(p);
-	}
-	// Sort the data
-	std::sort(particles.begin(), particles.end(),
-		[](const UintahParticle &a, const UintahParticle &b){
-			if (a.x == b.x){
-				if (a.y == b.y){
-					return a.z < b.z;
-				}
-				return a.y < b.y;
-			}
-			return a.x < b.x;
-		});
-	// Now go back through and write it back to our arrays
-	for (size_t i = 0; i < particles.size(); ++i){
-		const auto &p = particles[i];
-		model["positions"][i * 3] = p.x;
-		model["positions"][i * 3 + 1] = p.y;
-		model["positions"][i * 3 + 2] = p.z;
-		for (const auto &attrib : p.attribs){
-			model[attrib.first][i] = attrib.second;
-		}
+	for (size_t i = 0; i < positions->data.size(); i += 3){
+		x_range[0] = std::min(x_range[0], positions->data[i]);
+		x_range[1] = std::max(x_range[1], positions->data[i]);
+
+		y_range[0] = std::min(y_range[0], positions->data[i + 1]);
+		y_range[1] = std::max(y_range[1], positions->data[i + 1]);
+
+		z_range[0] = std::min(z_range[0], positions->data[i + 2]);
+		z_range[1] = std::max(z_range[1], positions->data[i + 2]);
 	}
 
-	float x_range[2] = { model["positions"][0], model["positions"][0] };
-	float y_range[2] = { model["positions"][1], model["positions"][1] };
-	float z_range[2] = { model["positions"][2], model["positions"][2] };
-	std::cout << "positions count: " << model["positions"].size() << "\n";
-	for (auto it = model["positions"].begin(); it != model["positions"].end();){
-		if (*it < x_range[0]){
-			x_range[0] = *it;
-		}
-		if (*it > x_range[1]){
-			x_range[1] = *it;
-		}
-		++it;
-		if (*it < y_range[0]){
-			y_range[0] = *it;
-		}
-		if (*it > y_range[1]){
-			y_range[1] = *it;
-		}
-		++it;
-		if (*it < z_range[0]){
-			z_range[0] = *it;
-		}
-		if (*it > z_range[1]){
-			z_range[1] = *it;
-		}
-	}
-	std::cout << "Positions range from { " << x_range[0] << ", " << y_range[0]
+	std::cout << "Saving out Uintah data with " << positions->data.size() / 3 << " particles"
+		<< "\nPositions range from { " << x_range[0] << ", " << y_range[0]
 		<< ", " << z_range[0] << " } to { " << x_range[1] << ", "
 		<< y_range[1] << ", " << z_range[1] << " }\n";
 }
