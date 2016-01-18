@@ -59,10 +59,18 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 		z_range[1] = std::max(z_range[1], positions->data[i + 2]);
 	}
 
+	float concentration_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
+	for (size_t i = 0; i < concentration->data.size(); ++i){
+		concentration_range[0] = std::min(x_range[0], concentration->data[i]);
+		concentration_range[1] = std::max(x_range[1], concentration->data[i]);
+	}
+
 	std::cout << "Saving out SciVis16 data with " << positions->data.size() / 3 << " particles"
 		<< "\nPositions range from { " << x_range[0] << ", " << y_range[0]
 		<< ", " << z_range[0] << " } to { " << x_range[1] << ", "
 		<< y_range[1] << ", " << z_range[1] << " }\n";
+	std::cout << "Concentrations range from " << concentration_range[0]
+		<< " to " << concentration_range[1] << "\n";
 
 	model["positions"] = std::move(positions);
 	model["velocity"] = std::move(velocity);
