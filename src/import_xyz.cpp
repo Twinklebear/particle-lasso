@@ -40,6 +40,27 @@ void import_xyz(const FileName &file_name, ParticleModel &model){
 	for (const auto &t : atom_type_id){
 		std::cout << "Atom type '" << t.first << "' id = " << t.second << "\n";
 	}
+
+	float x_range[2] = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max() };
+	float y_range[2] = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max() };
+	float z_range[2] = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max() };
+
+	for (size_t i = 0; i < positions->data.size(); i += 3){
+		x_range[0] = std::min(x_range[0], positions->data[i]);
+		x_range[1] = std::max(x_range[1], positions->data[i]);
+
+		y_range[0] = std::min(y_range[0], positions->data[i + 1]);
+		y_range[1] = std::max(y_range[1], positions->data[i + 1]);
+
+		z_range[0] = std::min(z_range[0], positions->data[i + 2]);
+		z_range[1] = std::max(z_range[1], positions->data[i + 2]);
+	}
+
+	std::cout << "Saving out XYZ data with " << positions->data.size() / 3 << " particles"
+		<< "\nPositions range from { " << x_range[0] << ", " << y_range[0]
+		<< ", " << z_range[0] << " } to { " << x_range[1] << ", "
+		<< y_range[1] << ", " << z_range[1] << " }\n";
+
 	model["positions"] = std::move(positions);
 	model["atom_type"] = std::move(atom_type);
 }
