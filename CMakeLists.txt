@@ -17,19 +17,12 @@ endif()
 set(POINT_TO_IDX_INSTALL_DIR "${POINT_TO_IDX_SOURCE_DIR}/bin")
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${POINT_TO_IDX_SOURCE_DIR}/cmake")
-find_package(LAS REQUIRED)
-# It seems this lets it find the modern Boost libraries, since now it defaults to
-# multithreaded libs but doesn't include the -mt suffix. Maybe since this is an old
-# CMake version (2.6) it's not updated to recognize this change?
-set(Boost_USE_MULTITHREADED OFF)
-find_package(Boost 1.53 COMPONENTS program_options thread system iostreams filesystem REQUIRED)
-if(NOT LAS_FOUND)
-	message(FATAL_ERROR "Could not find libLAS (did you set $LAS_DIR if it's somewhere non-standard?)")
+find_package(LAStools REQUIRED)
+
+if(NOT LASTOOLS_FOUND)
+	message(FATAL_ERROR "Could not find LAStools (did you set $LASTOOLS_DIR?)")
 endif()
-link_directories(${Boost_LIBRARY_DIRS})
 
-set(LIBS ${LAS_LIBRARY} ${Boost_LIBRARIES})
-
-include_directories(include ${LAS_INCLUDE_DIR} ${Boost_INCLUDE_DIRS})
+include_directories(include ${LASTOOLS_INCLUDE_DIRS})
 add_subdirectory(src)
 
