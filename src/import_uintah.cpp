@@ -346,9 +346,9 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 
 	// Find the bounds of the data's positions
 	auto positions = dynamic_cast<DataT<float>*>(model["positions"].get());
-	float x_range[2] = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max() };
-	float y_range[2] = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max() };
-	float z_range[2] = { std::numeric_limits<float>::lowest(), std::numeric_limits<float>::max() };
+	float x_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
+	float y_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
+	float z_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
 
 	for (size_t i = 0; i < positions->data.size(); i += 3){
 		x_range[0] = std::min(x_range[0], positions->data[i]);
