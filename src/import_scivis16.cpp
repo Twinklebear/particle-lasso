@@ -9,8 +9,14 @@
 #include "import_scivis16.h"
 
 template<typename T>
-constexpr clamp(T x, T lo, T hi){
-	return x < lo ? lo : x > hi ? hi : x;
+T clamp(T x, T lo, T hi){
+	if (x < lo){
+		return lo;
+	}
+	if (x > hi){
+		return hi;
+	}
+	return x;
 }
 
 struct Header {
@@ -74,7 +80,7 @@ std::ostream& operator<<(std::ostream &os, const ParticleHeader &header){
 		<< header.grid_dim[0] << ", " << header.grid_dim[1]
 		<< ", " << header.grid_dim[2] << "}\n\tbins_per_cell: "
 		<< header.bins_per_cell << "\n\tparticle_data_start: "
-		<< particle_data_start << "\n}";
+		<< header.particle_data_start << "\n}";
 	return os;
 }
 
@@ -138,8 +144,9 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 	std::cout << "Concentrations range from " << concentration_range[0]
 		<< " to " << concentration_range[1] << "\n";
 
+	const std::array<uint32_t, 3> grid_dim = {10, 10, 10};
 	// We assume we're given the dimensions of the simulation, for the scivis16 data let's
-	// say 10x10x10 where the range is [-5, -5, 0] to [5, 5, 10]. These dims seem roughly
+	// say 8x8x8 where the range is [-5, -5, 0] to [5, 5, 10]. These dims seem roughly
 	// ok since the data min/max is [-4.99, -4.99, 0] and [4.99, 4.99, 10].
 	// So we have bins that are 1x1x1 and can compute which bin a particle falls into by say
 	// flooring its coords.
@@ -148,33 +155,38 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 	// B-tree library somewhere?
 	std::map<uint32_t, std::vector<ParticleBin>> particle_bins;
 	for (uint64_t i = 0; i < positions->data.size() / 3; ++i){
-		uint32_t x = static_cast<uint32_t>(positions->data[i * 3] + 5.0);
-		uint32_t y = static_cast<uint32_t>(positions->data[i * 3 + 1] + 5.0);
-		uint32_t z = static_cast<uint32_t>(positions->data[i * 3 + 2] + 5.0);
+		uint32_t x = static_cast<uint32_t>((positions->data[i * 3] + 5.0) / 10.0 * grid_dim[0]);
+		uint32_t y = static_cast<uint32_t>((positions->data[i * 3 + 1] + 5.0) / 10.0 * grid_dim[1]);
+		uint32_t z = static_cast<uint32_t>((positions->data[i * 3 + 2] + 5.0) / 10.0 * grid_dim[2]);
 		// Clamp to the bottom-left corners of grid cells
-		x = clamp(x, uint32_t{0}, uint32_t{9});
-		y = clamp(y, uint32_t{0}, uint32_t{9});
-		z = clamp(z, uint32_t{0}, uint32_t{9});
+		x = clamp(x, uint32_t{0}, grid_dim[0] - 1);
+		y = clamp(y, uint32_t{0}, grid_dim[1] - 1);
+		z = clamp(z, uint32_t{0}, grid_dim[2] - 1);
 		uint32_t b_id = encode_morton3(x, y, z);
 		std::vector<ParticleBin> &bins = particle_bins[b_id];
 		// If there aren't any bins or the last bin is full push on a new one
 		if (bins.empty() || bins.back().num_particles == 32){
+			std::cout << "Inserting bin hash " << b_id
+				<< " for pos x = " << x << ", y = " << y << ", z = " << z << "\n";
 			bins.push_back(ParticleBin{});
 		}
 		ParticleBin &bin = bins.back();
-		bin.particles[bin.num_particles++] = i / 3;
+		bin.particles[bin.num_particles++] = i;
 	}
 	// TODO: How can we compute the ordered index for a z index directly? I'm not
 	// quite understanding the IDX computation
 	std::vector<uint32_t> sorted_hashes;
-	sorted_hashes.reserve(10 * 10 * 10);
-	for (uint64_t i = 0; i < 10 * 10 * 10; ++i){
-		uint32_t x = i % 10;
-		uint32_t y = (i / 10) % 10;
-		uint32_t z = i / (10 * 10);
+	sorted_hashes.reserve(grid_dim[0] * grid_dim[1] * grid_dim[2]);
+	for (uint64_t i = 0; i < grid_dim[0] * grid_dim[1] * grid_dim[2]; ++i){
+		uint32_t x = i % grid_dim[0];
+		uint32_t y = (i / grid_dim[0]) % grid_dim[1];
+		uint32_t z = i / (grid_dim[0] * grid_dim[1]);
 		sorted_hashes.push_back(encode_morton3(x, y, z));
+		std::cout << "Hash " << sorted_hashes.back() << " for pos x = "
+			<< x << ", y = " << y << ", z = " << z << "\n";
 	}
 	std::sort(sorted_hashes.begin(), sorted_hashes.end());
+	std::cout << "Sorted hashes: # of them = " << sorted_hashes.size() << "\n";
 
 	size_t max_bins = 0;
 	std::cout << "# of particle bin hashes: " << particle_bins.size() << "\n";
@@ -194,24 +206,29 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 	// TODO: We need to compute the location to write the bins so that they're sorted in Z-order in the
 	// file without having to actually do a sort. Like w/ IDX we need a way to map from the Z index to
 	// the index in the sorted array
-	const ParticleHeader particle_header{{10, 10, 10}, max_bins,
+	const ParticleHeader particle_header{grid_dim, max_bins,
 		sizeof(ParticleHeader) + sorted_hashes.size() * max_bins * sizeof(ParticleBin)};
+	std::cout << "header = " << particle_header << "\n";
 	std::ofstream fout{"test.bin", std::ios::binary};
 	fout.write(reinterpret_cast<const char*>(&particle_header), sizeof(ParticleHeader));
 	const ParticleBin empty_bin;
 	for (const auto &z : sorted_hashes){
+		std::cout << "Writing bin '" << z << "' starting at " << fout.tellp() << "\n";
 		auto it = particle_bins.find(z);
 		size_t remainder = max_bins;
 		if (it != particle_bins.end()){
 			for (const auto &b : it->second){
+				std::cout << b << "\n";
 				fout.write(reinterpret_cast<const char*>(&b), sizeof(ParticleBin));
 				--remainder;
 			}
 		}
+		std::cout << "filling " << remainder << " empty bins\n";
 		// Fill remainder with empty bins since we expect max_bins for each hash
 		for (size_t i = 0; i < remainder; ++i){
 			fout.write(reinterpret_cast<const char*>(&empty_bin), sizeof(ParticleBin));
 		}
+		std::cout << "----------------------------------\n";
 	}
 	// Dump the particle data out as well. TODO: Should this be re-ordered in some way?
 	// Would we want to store the data in place in the bins?
