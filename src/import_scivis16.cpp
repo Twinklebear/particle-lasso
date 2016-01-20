@@ -1,10 +1,17 @@
 #include <cassert>
+#include <algorithm>
+#include <map>
 #include <iostream>
 #include <array>
 #include <limits>
 #include <unordered_map>
 #include <fstream>
 #include "import_scivis16.h"
+
+template<typename T>
+constexpr clamp(T x, T lo, T hi){
+	return x < lo ? lo : x > hi ? hi : x;
+}
 
 struct Header {
 	int32_t _pad3;
@@ -30,7 +37,7 @@ uint32_t part1_by2(uint32_t x){
 	return x;
 }
 uint32_t encode_morton3(uint32_t x, uint32_t y, uint32_t z){
-	return (part1_by2(x) << 2) + (part1_by2(y) << 1) + part1_by2(z);
+	return (part1_by2(z) << 2) | (part1_by2(y) << 1) | part1_by2(x);
 }
 
 // A bin containing 32 particles
@@ -62,6 +69,14 @@ struct ParticleHeader {
 	uint32_t bins_per_cell;
 	uint64_t particle_data_start;
 };
+std::ostream& operator<<(std::ostream &os, const ParticleHeader &header){
+	os << "ParticleHeader {\n\tgrid_dim: {"
+		<< header.grid_dim[0] << ", " << header.grid_dim[1]
+		<< ", " << header.grid_dim[2] << "}\n\tbins_per_cell: "
+		<< header.bins_per_cell << "\n\tparticle_data_start: "
+		<< particle_data_start << "\n}";
+	return os;
+}
 
 // This follows the reading example shown in code/max_concentration.cpp that's
 // included in the SciVis16 data download
@@ -131,11 +146,15 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 	// TODO: If we use an ordered map the bins would be sorted in Z-order for us here, but
 	// std::map performance is quite poor. Even std::unordered_map isn't so great. Maybe a
 	// B-tree library somewhere?
-	std::unordered_map<uint32_t, std::vector<ParticleBin>> particle_bins;
-	for (uint64_t i = 0; i < positions->data.size(); i += 3){
-		uint32_t x = static_cast<uint32_t>(positions->data[i] + 5.0);
-		uint32_t y = static_cast<uint32_t>(positions->data[i + 1] + 5.0);
-		uint32_t z = static_cast<uint32_t>(positions->data[i + 2] + 5.0);
+	std::map<uint32_t, std::vector<ParticleBin>> particle_bins;
+	for (uint64_t i = 0; i < positions->data.size() / 3; ++i){
+		uint32_t x = static_cast<uint32_t>(positions->data[i * 3] + 5.0);
+		uint32_t y = static_cast<uint32_t>(positions->data[i * 3 + 1] + 5.0);
+		uint32_t z = static_cast<uint32_t>(positions->data[i * 3 + 2] + 5.0);
+		// Clamp to the bottom-left corners of grid cells
+		x = clamp(x, uint32_t{0}, uint32_t{9});
+		y = clamp(y, uint32_t{0}, uint32_t{9});
+		z = clamp(z, uint32_t{0}, uint32_t{9});
 		uint32_t b_id = encode_morton3(x, y, z);
 		std::vector<ParticleBin> &bins = particle_bins[b_id];
 		// If there aren't any bins or the last bin is full push on a new one
@@ -145,6 +164,18 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 		ParticleBin &bin = bins.back();
 		bin.particles[bin.num_particles++] = i / 3;
 	}
+	// TODO: How can we compute the ordered index for a z index directly? I'm not
+	// quite understanding the IDX computation
+	std::vector<uint32_t> sorted_hashes;
+	sorted_hashes.reserve(10 * 10 * 10);
+	for (uint64_t i = 0; i < 10 * 10 * 10; ++i){
+		uint32_t x = i % 10;
+		uint32_t y = (i / 10) % 10;
+		uint32_t z = i / (10 * 10);
+		sorted_hashes.push_back(encode_morton3(x, y, z));
+	}
+	std::sort(sorted_hashes.begin(), sorted_hashes.end());
+
 	size_t max_bins = 0;
 	std::cout << "# of particle bin hashes: " << particle_bins.size() << "\n";
 	for (const auto &bins : particle_bins){
@@ -158,15 +189,33 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 		*/
 	}
 	std::cout << "Most bins for a hash: " << max_bins << "\n";
-	// Allocate a buffer to store our file data in so we can just dump bins to it
-	const size_t BIN_SIZE = sizeof(ParticleBin);
-	const size_t HEADER_SIZE = sizeof(ParticleHeader);
 	// TODO: For particle data we will really need adaptive storage, assuming each grid cell
 	// has max_bins bins will waste a lot of memory
 	// TODO: We need to compute the location to write the bins so that they're sorted in Z-order in the
 	// file without having to actually do a sort. Like w/ IDX we need a way to map from the Z index to
 	// the index in the sorted array
-	const ParticleHeader particle_header{{10, 10, 10}, max_bins, HEADER_SIZE + (max_bins * BIN_SIZE)};
+	const ParticleHeader particle_header{{10, 10, 10}, max_bins,
+		sizeof(ParticleHeader) + sorted_hashes.size() * max_bins * sizeof(ParticleBin)};
+	std::ofstream fout{"test.bin", std::ios::binary};
+	fout.write(reinterpret_cast<const char*>(&particle_header), sizeof(ParticleHeader));
+	const ParticleBin empty_bin;
+	for (const auto &z : sorted_hashes){
+		auto it = particle_bins.find(z);
+		size_t remainder = max_bins;
+		if (it != particle_bins.end()){
+			for (const auto &b : it->second){
+				fout.write(reinterpret_cast<const char*>(&b), sizeof(ParticleBin));
+				--remainder;
+			}
+		}
+		// Fill remainder with empty bins since we expect max_bins for each hash
+		for (size_t i = 0; i < remainder; ++i){
+			fout.write(reinterpret_cast<const char*>(&empty_bin), sizeof(ParticleBin));
+		}
+	}
+	// Dump the particle data out as well. TODO: Should this be re-ordered in some way?
+	// Would we want to store the data in place in the bins?
+	fout.write(reinterpret_cast<char*>(positions->data.data()), sizeof(float) * positions->data.size());
 
 	model["positions"] = std::move(positions);
 	model["velocity"] = std::move(velocity);
