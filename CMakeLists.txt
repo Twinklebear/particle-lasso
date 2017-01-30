@@ -22,8 +22,18 @@ link_directories(${VISUS_LINK_DIRECTORIES})
 
 # Small hack: install the visus shared libs on Windows to our exe dir
 if (MSVC)
-	install(FILES ${VISUS_SHARED_LIBRARIES} DESTINATION .)
+	set(VISUS_SHARED_LIBRARIES "${VISUS_LINK_DIRECTORIES}/VisusIdx.dll"
+		"${VISUS_LINK_DIRECTORIES}/VisusKernel.dll"
+		"${VISUS_LINK_DIRECTORIES}/VisusDb.dll")
+	string(REGEX REPLACE "lib" "bin" VISUS_SHARED_LIBRARIES "${VISUS_SHARED_LIBRARIES}")
+else ()
+	set(VISUS_SHARED_LIBRARIES "${VISUS_LINK_DIRECTORIES}/../bin/libVisusIdx.so"
+		"${VISUS_LINK_DIRECTORIES}/../bin/libVisusKernel.so"
+		"${VISUS_LINK_DIRECTORIES}/../bin/libVisusDb.so")
 endif()
+
+# Small hack to copy the visus shared libs to my executable's dir
+install(FILES ${VISUS_SHARED_LIBRARIES} DESTINATION .)
 
 include_directories(${VISUS_INCLUDE_DIRECTORIES})
 add_subdirectory(src)
