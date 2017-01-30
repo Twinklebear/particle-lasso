@@ -27,9 +27,9 @@ if (MSVC)
 		"${VISUS_LINK_DIRECTORIES}/VisusDb.dll")
 	string(REGEX REPLACE "lib" "bin" VISUS_SHARED_LIBRARIES "${VISUS_SHARED_LIBRARIES}")
 else ()
-	set(VISUS_SHARED_LIBRARIES "${VISUS_LINK_DIRECTORIES}/../bin/libVisusIdx.so"
-		"${VISUS_LINK_DIRECTORIES}/../bin/libVisusKernel.so"
-		"${VISUS_LINK_DIRECTORIES}/../bin/libVisusDb.so")
+	set(VISUS_SHARED_LIBRARIES "${VISUS_LINK_DIRECTORIES}/libVisusIdx.so"
+		"${VISUS_LINK_DIRECTORIES}/libVisusKernel.so"
+		"${VISUS_LINK_DIRECTORIES}/libVisusDb.so")
 endif()
 
 # Small hack to copy the visus shared libs to my executable's dir
