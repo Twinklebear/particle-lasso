@@ -1,5 +1,5 @@
-add_executable(point_to_raw point_to_raw.cpp types.cpp import_las.cpp
-	import_uintah.cpp import_xyz.cpp import_scivis16.cpp tinyxml2.cpp)
-target_link_libraries(point_to_raw ${LASTOOLS_LIBRARIES})
-install(TARGETS point_to_raw DESTINATION ${POINT_TO_IDX_INSTALL_DIR})
+add_executable(particle_idx particle_idx.cpp)
+message("visus kernel libs ${VISUS_KERNEL_LINK_LIBRARIES}")
+target_link_libraries(particle_idx ${VISUS_KERNEL_LINK_LIBRARIES} ${VISUS_LIBRARIES})
+install(TARGETS particle_idx DESTINATION .)
 
