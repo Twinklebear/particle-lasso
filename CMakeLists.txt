@@ -33,8 +33,17 @@ else ()
 endif()
 
 # Small hack to copy the visus shared libs to my executable's dir
-install(FILES ${VISUS_SHARED_LIBRARIES} DESTINATION .)
+install(FILES ${VISUS_SHARED_LIBRARIES} DESTINATION bin)
 
 include_directories(${VISUS_INCLUDE_DIRECTORIES})
 add_subdirectory(src)
+
+option(PARTICLE_IDX_VL_PLUGIN OFF "Build the vislight plugin")
+if (PARTICLE_IDX_VL_PLUGIN)
+	get_plugin_name(plugin_name "particle_idx")
+	add_library(${plugin_name} MODULE particle_idx_plugin.cpp)
+	target_link_libraries(${plugin_name} vl VisusIdx VisusKernel VisusDb)
+	install(TARGETS ${plugin_name} DESTINATION bin)
+endif()
+
 
