@@ -1,7 +1,19 @@
+#include <array>
+#include <iostream>
+
 #include <Visus/Visus.h>
 #include <Visus/IdxDataset.h>
 
 using namespace Visus;
+
+#pragma pack(1)
+struct Particle {
+	float x, y, z, attrib;
+
+	Particle(float x, float y, float z, float attrib)
+		: x(x), y(y), z(z), attrib(attrib)
+	{}
+};
 
 int main(int argc, const char *argv[]) {
 	// Setup required junk
@@ -9,54 +21,70 @@ int main(int argc, const char *argv[]) {
 	app->init(argc, argv);
 	IdxModule::attach();
 
-	String filename="particle_test.idx";
-	//the data will be in the bounding box  p1(0,0,0) p2(15,15,15) (both p1 and p2 included)
+	String filename = "particle_test.idx";
+
+	// Our "field" is just a bin holding 2 particles
+	Field field("particle", DType(2 * sizeof(Particle), DTypes::UINT8));
+	field.default_layout="";
+	// This 4^2 image defines our virtual fine-level grid that we're placing
+	// over the dataset to bin the particles
 	{
 		IdxFile idxfile;
+		idxfile.bitsperblock = 1;
 		idxfile.logic_box.setP2(NdPoint::one());
-		idxfile.logic_box.setP2(0,16);
-		idxfile.logic_box.setP2(1,16);
-		idxfile.logic_box.setP2(2,16);
-		{
-			Field field("myfield",DTypes::UINT32);
-			field.default_layout="";
-			idxfile.fields.push_back(field);
-		}
+		idxfile.logic_box.setP2(0, 4);
+		idxfile.logic_box.setP2(1, 4);
+		idxfile.fields.push_back(field);
 		VisusReleaseAssert(idxfile.save(filename));
 	}
 
-	//now create a Dataset, save it and reopen from disk
-	auto dataset=Dataset::loadDataset(filename);
+	// Create a dataset to open and work with the file
+	auto dataset = Dataset::loadDataset(filename);
 	VisusReleaseAssert(dataset && dataset->valid());
+	auto access = dataset->createAccess();
 
-	//any time you need to read/write data from/to a Dataset I need a Access
-	auto access=dataset->createAccess();
+	// Try to write a specific block of data to the file
+	std::array<Particle, 2> particles = {
+		Particle(0.0, 1.0, 1.0, 5.0),
+		Particle(1.0, 2.0, 0.0, 8.0)
+	};
 
-	//for example I want to write data by slices
-	int cont=0;
-	for (int nslice=0;nslice<16;nslice++)
-	{
-		//this is the bounding box of the region I'm going to write
-		NdBox slice_box=dataset->getLogicBox();
-		slice_box.setP1(2,nslice  );
-		slice_box.setP2(2,nslice+1);
+	auto query = std::make_shared<BlockQuery>(dataset.get(), 'w');
+	query->setAccess(access);
+	query->setField(field);
+	// These are the (global?) Z-indices of the samples we want to write,
+	// the range queried is [start, end).
+	query->setStartAddress(8);
+	query->setEndAddress(10);
 
-		//prepare the write query
-		auto query=std::make_shared<Query>(dataset.get(),'w');
-		query->setLogicPosition(slice_box);
-		query->setAccess(access);
-		query->begin();
-		VisusReleaseAssert(!query->end() && query->getNumberOfSamples().innerProduct()==16*16);
+	std::cout << "start addr = " << query->getStartAddress()
+		<< "\nend addr = " << query->getEndAddress()
+		<< std::endl;
 
-		//fill the buffers
-		auto buffer=std::make_shared<Array>(query->getNumberOfSamples(),query->getField().dtype);
-		unsigned int* Dst=(unsigned int*)buffer->c_ptr();
-		for (int I=0;I<16*16;I++) *Dst++=cont++;
-		query->setBuffer(buffer);
+	query->begin();
+	VisusReleaseAssert(!query->end());
 
-		//execute the writing
-		VisusReleaseAssert(query->execute());
+	auto &samples = query->getSamples();
+	// How many samples should be here? For a block query it's required that we write
+	// the entire block, and the total number of samples returned to us may not be right,
+	// since it won't account for this level possibly not filling the block or being
+	// split across blocks.
+	std::cout << "total # of samples = " << query->getTotalNumberOfSamples() << "\n"
+		<< "query samples inner prod = " << samples.nsamples.innerProduct() << "\n"
+		// The logic box may have its end point out of bounds due to the level delta (stride)
+		// so we should just clamp the end point to the edge. Besides that it's like
+		// the other logic boxes in that it specifies an inclusive n-D box.
+		<< "samples logic box = " << samples.logic_box.toString() << std::endl;
+
+	// TODO: This doesn't seem to give us the right buffer size, we need to write whole blocks with this
+	// but total number of samples just refers to our query, not the entire block size.
+	auto buffer = std::make_shared<Array>(query->getTotalNumberOfSamples(), query->getField().dtype);
+	unsigned char *data = buffer->c_ptr();
+	for (size_t i = 0; i < query->getTotalNumberOfSamples(); ++i) {
+		data[i] = 'a';
 	}
+	query->setBuffer(buffer);
+	BlockQuery::execute(query);
 	return 0;
 }
 
