@@ -41,13 +41,50 @@ std::ostream& operator<<(std::ostream &os, const Particle &p) {
 struct ParticleDataset {
 	Visus::SharedPtr<Visus::Dataset> dataset;
 	std::vector<Particle> particles;
-	glt::SubBuffer vbo;
+	glt::SubBuffer vbo, boundary_vbo;
+	glm::mat4 logic_to_physic;
+	glm::vec3 logic_box_min, logic_box_max;
+	glm::vec3 query_box_min, query_box_max;
+	bool query_box_changed, particles_changed;
+	int resolution;
 
 	ParticleDataset(const vl::FileName &fname);
+	// Query the currently held query box from the IDX file
+	void query_box();
 };
 ParticleDataset::ParticleDataset(const vl::FileName &fname)
-	: dataset(Visus::Dataset::loadDataset(fname.file_name))
+	: dataset(Visus::Dataset::loadDataset(fname.file_name)), logic_to_physic(glm::mat4(1))
 {
+	using namespace Visus;
+	if (!dataset || !dataset->valid()) {
+		throw std::runtime_error("Failed to load IDX dataset");
+	}
+	const NdBox world_box = dataset->getLogicBox();
+	std::cout << "World box = " << world_box.toString() << "\n"
+		<< "world box p1 = " << world_box.p1().toString() << "\n"
+		<< "world box p2 = " << world_box.p2().toString() << "\n";
+	const Matrix lp = dataset->getLogicToPhysic();
+	logic_to_physic[0][0] = lp(0, 0);
+	// Note: glm is column major
+	logic_to_physic[3][0] = lp(0, 3);
+	logic_to_physic[1][1] = lp(1, 1);
+	logic_to_physic[3][1] = lp(1, 3);
+	logic_to_physic[2][2] = lp(2, 2);
+	logic_to_physic[3][2] = lp(2, 3);
+
+	// Box goes from a to b in logic space
+	logic_box_min = glm::vec3(world_box.p1().x, world_box.p1().y, world_box.p1().z);
+	logic_box_max = glm::vec3(world_box.p2().x, world_box.p2().y, world_box.p2().z);
+	query_box_min = logic_box_min;
+	query_box_max = logic_box_max;
+	query_box_changed = true;
+	particles_changed = false;
+	std::cout << "max resolution = " << dataset->getMaxResolution() << std::endl;
+	resolution = dataset->getMaxResolution();
+	// Query the initial data we want to display
+	query_box();
+}
+void ParticleDataset::query_box() {
 	using namespace Visus;
 
 	// Our "field" is just a bin holding 2 particles
@@ -55,23 +92,13 @@ ParticleDataset::ParticleDataset(const vl::FileName &fname)
 	std::cout << "particle field bytes/sample = " << field.dtype.getByteSize(1) << "\n";
 	field.default_layout="";
 
-	if (!dataset || !dataset->valid()) {
-		throw std::runtime_error("Failed to load IDX dataset");
-	}
 	auto access = dataset->createAccess();
-
-	const NdBox world_box = dataset->getLogicBox();
-	std::cout << "World box = " << world_box.toString() << "\n"
-		<< "world box p1 = " << world_box.p1().toString() << "\n"
-		<< "world box p2 = " << world_box.p2().toString() << "\n";
-	/*
-	NdBox query_box = world_box;
-	query_box.setP1(NdPoint(0, 1, 0, 0, 0));
-	query_box.setP2(NdPoint(2, 3, 1, 1, 1));
+	NdBox query_box;
+	query_box.setP1(NdPoint(query_box_min.x, query_box_min.y, query_box_min.z, 0, 0));
+	query_box.setP2(NdPoint(query_box_max.x, query_box_max.y, query_box_max.z, 1, 1));
 	std::cout << "Query box = " << query_box.toString() << "\n"
 		<< "query box p1 = " << query_box.p1().toString() << "\n"
 		<< "query box p2 = " << query_box.p2().toString() << "\n";
-	*/
 
 	// TODO: What we really want to do are box queries on the data for LOD queries
 	// So interpolating the samples makes no sense, we want to just get the existing samples
@@ -80,11 +107,13 @@ ParticleDataset::ParticleDataset(const vl::FileName &fname)
 	auto query = std::make_shared<Query>(dataset.get(), 'r');
 	query->setAccess(access);
 	query->setField(field);
-	query->setLogicPosition(world_box);
+	query->setLogicPosition(query_box);
 	// Is it ok if I query the whole thing when only one block actually exists?
 	// What does end resolution mean? What do I get if I add none of this? Do I get
 	// all of the samples?
-	query->addEndResolution(dataset->getMaxResolution());
+	std::cout << "max resolution = " << dataset->getMaxResolution()
+		<< ", query resolution = " << resolution << std::endl;
+	query->addEndResolution(resolution);
 
 	// We don't want to interpolate samples b/c they're not voxels or pixels that
 	// you can interpolate but particle bins
@@ -109,9 +138,10 @@ ParticleDataset::ParticleDataset(const vl::FileName &fname)
 	// Now test reading back the particle data
 	Particle *p_data = reinterpret_cast<Particle*>(buffer->c_ptr());
 	const size_t possible_particles = PARTICLES_PER_SAMPLE * samples.nsamples.innerProduct();
+	particles.clear();
 	std::copy_if(p_data, p_data + possible_particles, std::back_inserter(particles),
 			[](const Particle &p) { return p.valid != 0; });
-	std::cout << "valid particles in the file = " << particles.size() << "\n";
+	std::cout << "valid particles in the query = " << particles.size() << "\n";
 	for (const auto &p : particles) {
 		std::cout << "particles read = " << p << "\n";
 	}
@@ -130,6 +160,21 @@ static void ui_fn(){
 	}
 	if (ImGui::Begin("IDX Particles")) {
 		ImGui::Text("# of Particles %llu", dataset->particles.size());
+		ImGui::Text("Logic Box [%.2f, %.2f, %.2f] to [%.2f, %.2f, %.2f]",
+				dataset->logic_box_min.x, dataset->logic_box_min.y, dataset->logic_box_min.z,
+				dataset->logic_box_max.x, dataset->logic_box_max.y, dataset->logic_box_max.z);
+		// Is the max range inclusive or exclusive for the slider?
+		if (ImGui::SliderInt("Resolution", &dataset->resolution, 0, dataset->dataset->getMaxResolution())) {
+			dataset->particles_changed = true;
+		}
+		if (ImGui::InputFloat3("Box Min", &dataset->query_box_min.x, -1, ImGuiInputTextFlags_EnterReturnsTrue)) {
+			dataset->query_box_changed = true;
+			dataset->particles_changed = true;
+		}
+		if (ImGui::InputFloat3("Box Max", &dataset->query_box_max.x, -1, ImGuiInputTextFlags_EnterReturnsTrue)) {
+			dataset->query_box_changed = true;
+			dataset->particles_changed = true;
+		}
 	}
 	ImGui::End();
 }
@@ -160,13 +205,81 @@ static void render_fn(std::shared_ptr<glt::BufferAllocator> &allocator, const gl
 			pos[i].z = dataset->particles[i].z;
 		}
 		dataset->vbo.unmap(GL_ARRAY_BUFFER);
+	}
+	// Setup buffer to draw the border of the query region
+	if (dataset->boundary_vbo.buffer == 0) {
+		// We have 12 lines w/ 2 points each
+		dataset->boundary_vbo = allocator->alloc(24 * sizeof(glm::vec3));
+	}
+	if (dataset->query_box_changed || dataset->particles_changed) {
+		dataset->query_box();
+	}
+	if (dataset->particles_changed) {
+		dataset->particles_changed = false;
+		// Upload the new queried position data
+		allocator->free(dataset->vbo);
+		dataset->vbo = allocator->alloc(dataset->particles.size() * sizeof(glm::vec3));
+		glm::vec3 *pos = static_cast<glm::vec3*>(dataset->vbo.map(GL_ARRAY_BUFFER, GL_MAP_WRITE_BIT));
+		for (size_t i = 0; i < dataset->particles.size(); ++i) {
+			pos[i].x = dataset->particles[i].x;
+			pos[i].y = dataset->particles[i].y;
+			pos[i].z = dataset->particles[i].z;
+		}
+		dataset->vbo.unmap(GL_ARRAY_BUFFER);
+	}
+	if (dataset->query_box_changed) {
+		dataset->query_box_changed = false;
+		const glm::vec3 min = glm::vec3(dataset->logic_to_physic * glm::vec4(dataset->query_box_min, 1.0));
+		const glm::vec3 max = glm::vec3(dataset->logic_to_physic * glm::vec4(dataset->query_box_max, 1.0));
+		glm::vec3 *lines = static_cast<glm::vec3*>(dataset->boundary_vbo.map(GL_ARRAY_BUFFER, GL_MAP_WRITE_BIT));
+		lines[0] = min;
+		lines[1] = glm::vec3(max.x, min.y, min.z);
 
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)dataset->vbo.offset);
+		lines[2] = min;
+		lines[3] = glm::vec3(min.x, max.y, min.z);
+
+		lines[4] = glm::vec3(max.x, min.y, min.z);
+		lines[5] = glm::vec3(max.x, max.y, min.z);
+
+		lines[6] = glm::vec3(min.x, max.y, min.z);
+		lines[7] = glm::vec3(max.x, max.y, min.z);
+
+		lines[8] = glm::vec3(min.x, min.y, max.z);
+		lines[9] = glm::vec3(max.x, min.y, max.z);
+
+		lines[10] = glm::vec3(min.x, min.y, max.z);
+		lines[11] = glm::vec3(min.x, max.y, max.z);
+
+		lines[12] = glm::vec3(max.x, min.y, max.z);
+		lines[13] = glm::vec3(max.x, max.y, max.z);
+
+		lines[14] = glm::vec3(min.x, max.y, max.z);
+		lines[15] = glm::vec3(max.x, max.y, max.z);
+
+		lines[16] = min;
+		lines[17] = glm::vec3(min.x, min.y, max.z);
+
+		lines[18] = glm::vec3(max.x, min.y, min.z);
+		lines[19] = glm::vec3(max.x, min.y, max.z);
+
+		lines[20] = glm::vec3(min.x, max.y, min.z);
+		lines[21] = glm::vec3(min.x, max.y, max.z);
+
+		lines[22] = glm::vec3(max.x, max.y, min.z);
+		lines[23] = glm::vec3(max.x, max.y, max.z);
+
+		dataset->boundary_vbo.unmap(GL_ARRAY_BUFFER);
 	}
 
 	glEnable(GL_PROGRAM_POINT_SIZE);
+	glBindBuffer(GL_ARRAY_BUFFER, dataset->vbo.buffer);
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)dataset->vbo.offset);
 	glDrawArrays(GL_POINTS, 0, dataset->particles.size());
+
+	glBindBuffer(GL_ARRAY_BUFFER, dataset->boundary_vbo.buffer);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)dataset->boundary_vbo.offset);
+	glDrawArrays(GL_LINES, 0, 24);
 
 	glUseProgram(0);
 	glBindVertexArray(0);

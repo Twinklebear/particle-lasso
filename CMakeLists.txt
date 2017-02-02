@@ -35,7 +35,7 @@ endif()
 # Small hack to copy the visus shared libs to my executable's dir
 install(FILES ${VISUS_SHARED_LIBRARIES} DESTINATION bin)
 
-include_directories(${VISUS_INCLUDE_DIRECTORIES})
+include_directories(include ${VISUS_INCLUDE_DIRECTORIES})
 add_subdirectory(src)
 
 option(PARTICLE_IDX_VL_PLUGIN OFF "Build the vislight plugin")
