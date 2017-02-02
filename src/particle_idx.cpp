@@ -5,6 +5,7 @@
 #include <string>
 #include <limits>
 #include <fstream>
+#include <random>
 
 #include <Visus/Visus.h>
 #include <Visus/IdxDataset.h>
@@ -40,7 +41,8 @@ size_t PARTICLES_PER_SAMPLE = 2;
 void test_write_block(const Field &field);
 void test_read_block(const Field &field);
 void test_read_box(const Field &field);
-void convert_xyz(const std::string &fname, const std::string &out_name, const Field &field);
+void convert_xyz(const std::string &fname, const std::string &out_name, const Field &field,
+		const size_t bits_per_block, const std::array<size_t, 3> &idx_grid_dims, const bool randomize);
 inline float scale_range(const float x, const float old_min, const float old_max,
 		const float new_min, const float new_max)
 {
@@ -54,6 +56,9 @@ int main(int argc, const char *argv[]) {
 	IdxModule::attach();
 
 	std::string xyz_fname, out_name;
+	size_t bits_per_block = 2;
+	std::array<size_t, 3> idx_grid_dims{4, 4, 4};
+	bool randomize = false;
 	for (int i = 1; i < argc; ++i) {
 		if (std::strcmp(argv[i], "-pps") == 0) {
 			PARTICLES_PER_SAMPLE = std::atoi(argv[++i]);
@@ -61,6 +66,14 @@ int main(int argc, const char *argv[]) {
 			xyz_fname = argv[++i];
 		} else if (std::strcmp(argv[i], "-o") == 0) {
 			out_name = argv[++i];
+		} else if (std::strcmp(argv[i], "-bpb") == 0) {
+			bits_per_block = std::atol(argv[++i]);
+		} else if (std::strcmp(argv[i], "-grid") == 0) {
+			for (auto &d : idx_grid_dims) {
+				d = std::atol(argv[++i]);
+			}
+		} else if (std::strcmp(argv[i], "-rand") == 0) {
+			randomize = true;
 		}
 	}
 	std::cout << "Will store " << PARTICLES_PER_SAMPLE << " particles per sample\n";
@@ -75,7 +88,7 @@ int main(int argc, const char *argv[]) {
 			std::cout << "an output filename via -o is also required\n";
 			return 1;
 		}
-		convert_xyz(xyz_fname, out_name, field);
+		convert_xyz(xyz_fname, out_name, field, bits_per_block, idx_grid_dims, randomize);
 	} else {
 		std::cout << "Generating and testing basic IDX particle file\n";
 		// This 4^2 image defines our virtual fine-level grid that we're placing
@@ -270,7 +283,9 @@ void test_read_box(const Field &field) {
 	}
 	std::cout << "------" << std::endl;
 }
-void convert_xyz(const std::string &fname, const std::string &out_name, const Field &field) {
+void convert_xyz(const std::string &fname, const std::string &out_name, const Field &field,
+		const size_t bits_per_block, const std::array<size_t, 3> &idx_grid_dims, const bool randomize)
+{
 	std::ifstream file(fname.c_str());
 
 	size_t num_atoms = 0;
@@ -320,11 +335,12 @@ void convert_xyz(const std::string &fname, const std::string &out_name, const Fi
 		<< "}\n";
 
 	// Make the IDX file we'll store the particles in
-	const size_t bits_per_block = 2;
 	const size_t samples_per_block = 1 << bits_per_block;
-	// This 4^2 image defines our virtual fine-level grid that we're placing
-	// over the dataset to bin the particles
-	const std::array<size_t, 3> idx_grid_dims{4, 2, 2};
+	std::cout << "Using " << bits_per_block << " bits per block, with "
+		<< samples_per_block << " samples per block\n"
+		<< "IDX Grid dimensions = {" << idx_grid_dims[0]
+		<< ", " << idx_grid_dims[1] << ", " << idx_grid_dims[2]
+		<< "}\n";
 	// Setup the transform from physical space (the particle value range) to
 	// logical space (the IDX grid dimensions)
 	Matrix physic_to_logic = Matrix::identity();
@@ -353,12 +369,19 @@ void convert_xyz(const std::string &fname, const std::string &out_name, const Fi
 		VisusReleaseAssert(idxfile.save(out_name));
 	}
 
+	if (randomize) {
+		std::cout << "Particles will be sampled randomly from the dataset\n";
+	}
+
 	auto dataset = Dataset::loadDataset(out_name);
 	std::cout << "logic to physic = " << dataset->getLogicToPhysic().toString() << "\n";
 	if (!dataset || !dataset->valid()) {
 		throw std::runtime_error("Failed to open dataset");
 	}
 	auto access = dataset->createAccess();
+
+	std::random_device rd;
+	std::mt19937_64 rng(rd());
 
 	// TODO: In the future this would not be true, as we may need to refine
 	// some regions if there's a lot of particle data there. Then the number
@@ -404,19 +427,24 @@ void convert_xyz(const std::string &fname, const std::string &out_name, const Fi
 		std::memset(buffer->c_ptr(), 0, buffer->c_size());
 		Particle *data = reinterpret_cast<Particle*>(buffer->c_ptr());
 		size_t particles_for_block = 0;
+		if (randomize) {
+			std::shuffle(particles.begin(), particles.end(), rng);
+		}
 		// Try to find some particles for this block.
 		for (size_t j = 0; j < particles.size();) {
 			// The boxes are not inclusive on their upper edge, so nudge things down a little bit
 			const Point4d lpos = physic_to_logic * Point4d(particles[j].x, particles[j].y, particles[j].z, 1.0);
 			const NdPoint p(lpos.x, lpos.y, lpos.z);
+#if 0
 			std::cout << "particle " << particles[j] << " transformed pt to "
 				<< p.toString() << " in logic space\n";
+#endif
 			if (samples.logic_box.containsPoint(p)) {
-				std::cout << "particle is in this block\n";
+				//std::cout << "particle is in this block\n";
 				data[particles_for_block++] = particles[j];
 				particles.erase(particles.begin() + j);
 				if (particles_for_block == query->getTotalNumberOfSamples() * PARTICLES_PER_SAMPLE) {
-					std::cout << "This block is filled\n";
+					std::cout << "This block is filled with " << particles_for_block << " particles\n";
 					break;
 				}
 			} else {
@@ -437,12 +465,15 @@ void convert_xyz(const std::string &fname, const std::string &out_name, const Fi
 		}
 	}
 	if (!particles.empty()) {
-		std::cout << "There were " << particles.size() << " left over particles that weren't written."
+		std::cout << "There were " << particles.size() << " left over particles of the total "
+			<< num_atoms << " that weren't written."
 			<< " Likely region refinement is required to subdivide the higher density areas further\n"
 			<< "Left over particles:\n";
+		/*
 		for (const auto &p : particles) {
 			std::cout << p << "\n";
 		}
+		*/
 	}
 }
 
