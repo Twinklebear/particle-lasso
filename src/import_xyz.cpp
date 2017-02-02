@@ -1,4 +1,5 @@
 #include <string>
+#include <algorithm>
 #include <limits>
 #include <fstream>
 #include "import_xyz.h"
