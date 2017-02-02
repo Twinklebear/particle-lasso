@@ -14,7 +14,7 @@
 #include <Visus/Visus.h>
 #include <Visus/IdxDataset.h>
 
-static const size_t PARTICLES_PER_SAMPLE = 2;
+static size_t PARTICLES_PER_SAMPLE = 2;
 
 // The Visus IDX reader doesn't tell you if it failed to read a block due
 // to it being missing in the file and instead just returns 0 filled buffer
@@ -41,6 +41,7 @@ std::ostream& operator<<(std::ostream &os, const Particle &p) {
 struct ParticleDataset {
 	Visus::SharedPtr<Visus::Dataset> dataset;
 	std::vector<Particle> particles;
+	float particle_radius;
 	glt::SubBuffer vbo, boundary_vbo;
 	glm::mat4 logic_to_physic;
 	glm::vec3 logic_box_min, logic_box_max;
@@ -53,7 +54,8 @@ struct ParticleDataset {
 	void query_box();
 };
 ParticleDataset::ParticleDataset(const vl::FileName &fname)
-	: dataset(Visus::Dataset::loadDataset(fname.file_name)), logic_to_physic(glm::mat4(1))
+	: dataset(Visus::Dataset::loadDataset(fname.file_name)), particle_radius(0.5),
+	logic_to_physic(glm::mat4(1))
 {
 	using namespace Visus;
 	if (!dataset || !dataset->valid()) {
@@ -92,6 +94,7 @@ void ParticleDataset::query_box() {
 	std::cout << "particle field bytes/sample = " << field.dtype.getByteSize(1) << "\n";
 	field.default_layout="";
 
+	particles.clear();
 	auto access = dataset->createAccess();
 	NdBox query_box;
 	query_box.setP1(NdPoint(query_box_min.x, query_box_min.y, query_box_min.z, 0, 0));
@@ -130,6 +133,10 @@ void ParticleDataset::query_box() {
 		// so we should just clamp the end point to the edge. Besides that it's like
 		// the other logic boxes in that it specifies an inclusive n-D box.
 		<< "samples logic box = " << samples.logic_box.toString() << std::endl;
+	if (samples.nsamples.innerProduct() == 0) {
+		std::cout << "Query has no samples, aborting\n";
+		return;
+	}
 
 	query->execute();
 	auto buffer = query->getBuffer();
@@ -138,16 +145,18 @@ void ParticleDataset::query_box() {
 	// Now test reading back the particle data
 	Particle *p_data = reinterpret_cast<Particle*>(buffer->c_ptr());
 	const size_t possible_particles = PARTICLES_PER_SAMPLE * samples.nsamples.innerProduct();
-	particles.clear();
 	std::copy_if(p_data, p_data + possible_particles, std::back_inserter(particles),
 			[](const Particle &p) { return p.valid != 0; });
 	std::cout << "valid particles in the query = " << particles.size() << "\n";
+#if 0
 	for (const auto &p : particles) {
 		std::cout << "particles read = " << p << "\n";
 	}
+#endif
 }
 
 static GLuint dummy_vao = 0;
+static GLuint particle_radius_unif = 0;
 static GLuint shader = 0;
 static std::unique_ptr<ParticleDataset> dataset = nullptr;
 // Stupid thing we need for visus to find some non-existant config it shouldn't
@@ -167,6 +176,7 @@ static void ui_fn(){
 		if (ImGui::SliderInt("Resolution", &dataset->resolution, 0, dataset->dataset->getMaxResolution())) {
 			dataset->particles_changed = true;
 		}
+		ImGui::SliderFloat("Radius", &dataset->particle_radius, 0.1, 5);
 		if (ImGui::InputFloat3("Box Min", &dataset->query_box_min.x, -1, ImGuiInputTextFlags_EnterReturnsTrue)) {
 			dataset->query_box_changed = true;
 			dataset->particles_changed = true;
@@ -188,12 +198,11 @@ static void render_fn(std::shared_ptr<glt::BufferAllocator> &allocator, const gl
 		const std::string resource_path = glt::get_resource_path();
 		shader = glt::load_program({std::make_pair(GL_VERTEX_SHADER, resource_path + "particle_idx_vert.glsl"),
 				std::make_pair(GL_FRAGMENT_SHADER, resource_path + "particle_idx_frag.glsl")});
+		particle_radius_unif = glGetUniformLocation(shader, "particle_radius");
 	}
 	if (!dataset) {
 		return;
 	}
-	glBindVertexArray(dummy_vao);
-	glUseProgram(shader);
 
 	if (dataset->vbo.buffer == 0) {
 		// Just sending positions for now
@@ -216,16 +225,18 @@ static void render_fn(std::shared_ptr<glt::BufferAllocator> &allocator, const gl
 	}
 	if (dataset->particles_changed) {
 		dataset->particles_changed = false;
-		// Upload the new queried position data
-		allocator->free(dataset->vbo);
-		dataset->vbo = allocator->alloc(dataset->particles.size() * sizeof(glm::vec3));
-		glm::vec3 *pos = static_cast<glm::vec3*>(dataset->vbo.map(GL_ARRAY_BUFFER, GL_MAP_WRITE_BIT));
-		for (size_t i = 0; i < dataset->particles.size(); ++i) {
-			pos[i].x = dataset->particles[i].x;
-			pos[i].y = dataset->particles[i].y;
-			pos[i].z = dataset->particles[i].z;
+		if (!dataset->particles.empty()) {
+			// Upload the new queried position data
+			allocator->free(dataset->vbo);
+			dataset->vbo = allocator->alloc(dataset->particles.size() * sizeof(glm::vec3));
+			glm::vec3 *pos = static_cast<glm::vec3*>(dataset->vbo.map(GL_ARRAY_BUFFER, GL_MAP_WRITE_BIT));
+			for (size_t i = 0; i < dataset->particles.size(); ++i) {
+				pos[i].x = dataset->particles[i].x;
+				pos[i].y = dataset->particles[i].y;
+				pos[i].z = dataset->particles[i].z;
+			}
+			dataset->vbo.unmap(GL_ARRAY_BUFFER);
 		}
-		dataset->vbo.unmap(GL_ARRAY_BUFFER);
 	}
 	if (dataset->query_box_changed) {
 		dataset->query_box_changed = false;
@@ -272,6 +283,9 @@ static void render_fn(std::shared_ptr<glt::BufferAllocator> &allocator, const gl
 	}
 
 	glEnable(GL_PROGRAM_POINT_SIZE);
+	glBindVertexArray(dummy_vao);
+	glUseProgram(shader);
+	glUniform1f(particle_radius_unif, dataset->particle_radius);
 	glBindBuffer(GL_ARRAY_BUFFER, dataset->vbo.buffer);
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, (void*)dataset->vbo.offset);
@@ -299,10 +313,12 @@ static bool vislight_plugin_particle_idx_init(const std::vector<std::string> &ar
 	Visus::IdxModule::attach();
 
 	std::cout << "particle_idx plugin loaded, args = {\n";
-	for (const auto &a : args){
-		std::cout << "\t" << a << "\n";
-		vl::FileName fname = a;
-		if (fname.extension() == "idx") {
+	for (size_t i = 0; i < args.size(); ++i) {
+		std::cout << "\t" << args[i] << "\n";
+		vl::FileName fname = args[i];
+		if (args[i] == "-pps") {
+			PARTICLES_PER_SAMPLE = std::stoi(args[++i]);
+		} else if (fname.extension() == "idx") {
 			loader_fn(fname);
 		}
 	}
