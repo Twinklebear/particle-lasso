@@ -1,6 +1,6 @@
 #version 430 core
 
-#include "view_info.glsl"
+#include <view_info.glsl>
 
 uniform float particle_radius;
 

@@ -82,7 +82,7 @@ ParticleDataset::ParticleDataset(const vl::FileName &fname)
 	query_box_changed = true;
 	particles_changed = false;
 	std::cout << "max resolution = " << dataset->getMaxResolution() << std::endl;
-	resolution = dataset->getMaxResolution();
+	resolution = 0;
 	// Query the initial data we want to display
 	query_box();
 }
@@ -195,7 +195,7 @@ static void render_fn(std::shared_ptr<glt::BufferAllocator> &allocator, const gl
 		glGenVertexArrays(1, &dummy_vao);
 	}
 	if (shader == 0) {
-		const std::string resource_path = glt::get_resource_path();
+		const std::string resource_path = glt::get_resource_path("particle_idx");
 		shader = glt::load_program({std::make_pair(GL_VERTEX_SHADER, resource_path + "particle_idx_vert.glsl"),
 				std::make_pair(GL_FRAGMENT_SHADER, resource_path + "particle_idx_frag.glsl")});
 		particle_radius_unif = glGetUniformLocation(shader, "particle_radius");
@@ -308,7 +308,6 @@ static bool vislight_plugin_particle_idx_init(const std::vector<std::string> &ar
 {
 	// Setup required junk
 	visus_app = Visus::UniquePtr<Visus::Application>(new Visus::Application());
-	const char* visus_junk_cmdline[] = {args[0].c_str()};
 	visus_app->init(0, nullptr);
 	Visus::IdxModule::attach();
 
