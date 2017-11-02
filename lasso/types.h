@@ -9,6 +9,17 @@
 #include <iostream>
 #include <typeinfo>
 
+template<typename T>
+T clamp(T x, T lo, T hi){
+	if (x < lo){
+		return lo;
+	}
+	if (x > hi){
+		return hi;
+	}
+	return x;
+}
+
 struct vec3f {
 	float x, y, z;
 
