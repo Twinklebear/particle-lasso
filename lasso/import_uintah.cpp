@@ -5,7 +5,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <limits>
-#include <tinyxml2.h>
+#include "tinyxml2.h"
 #include "import_uintah.h"
 
 using namespace tinyxml2;
