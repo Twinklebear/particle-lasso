@@ -1,5 +1,4 @@
-Point To IDX
-===
+# Particle Lasso
 
-Parse Lidar or Uintah data to raw bytes (and in the future IDX format)
+Utilities for lassoing particle data. 
 
