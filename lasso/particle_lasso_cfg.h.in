@@ -1,0 +1,4 @@
+#pragma once
+
+#cmakedefine PARTICLE_LASSO_ENABLE_LIDAR
+

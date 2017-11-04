@@ -14,6 +14,13 @@ elseif (MSVC)
 	endif()
 endif()
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
+
+option(PARTICLE_LASSO_ENABLE_LIDAR "Build Lidar data support, via LAStools" OFF)
+if (PARTICLE_LASSO_ENABLE_LIDAR)
+	find_package(LAStools REQUIRED)
+endif()
+
 add_subdirectory(lasso)
 add_subdirectory(vislight_plugin)
 
