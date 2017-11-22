@@ -223,6 +223,9 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 	if (num_particles > 0){
 		std::cout << "Number of particles" << std::endl;
 		if (model.find(variable) == model.end()){
+			if (variable == "p.x"){
+				variable = "positions";
+			}
 			model[variable] = std::make_unique<DataT<float>>();
 		}
 		// Particle positions are p.x
