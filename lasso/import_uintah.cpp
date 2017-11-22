@@ -221,16 +221,13 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 		}
 	}
 	if (num_particles > 0){
-		std::cout << "Number of particles" << std::endl;
+		std::cout << "Number of particles: " << num_particles << std::endl;
 		if (model.find(variable) == model.end()){
-			if (variable == "p.x"){
-				variable = "positions";
-			}
 			model[variable] = std::make_unique<DataT<float>>();
 		}
 		// Particle positions are p.x
 		if (variable == "p.x"){
-			return read_particles(base_path.join(FileName(file_name)), model["positions"].get(),
+			return read_particles(base_path.join(FileName(file_name)), model[variable].get(),
 						num_particles, start, end);
 		} else if (type == "ParticleVariable<double>"){
 			return read_particle_attribute<double, float>(base_path.join(FileName(file_name)),
@@ -344,7 +341,7 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 	}
 
 	// Find the bounds of the data's positions
-	auto positions = dynamic_cast<DataT<float>*>(model["positions"].get());
+	auto positions = dynamic_cast<DataT<float>*>(model["p.x"].get());
 	float x_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
 	float y_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
 	float z_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
