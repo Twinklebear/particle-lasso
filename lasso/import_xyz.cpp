@@ -57,7 +57,7 @@ void import_xyz(const FileName &file_name, ParticleModel &model){
 		z_range[1] = std::max(z_range[1], positions->data[i + 2]);
 	}
 
-	std::cout << "Saving out XYZ data with " << positions->data.size() / 3 << " particles"
+	std::cout << "Read XYZ data with " << positions->data.size() / 3 << " particles"
 		<< "\nPositions range from { " << x_range[0] << ", " << y_range[0]
 		<< ", " << z_range[0] << " } to { " << x_range[1] << ", "
 		<< y_range[1] << ", " << z_range[1] << " }\n";

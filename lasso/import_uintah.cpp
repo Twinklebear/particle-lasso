@@ -221,6 +221,7 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 		}
 	}
 	if (num_particles > 0){
+		std::cout << "Number of particles" << std::endl;
 		if (model.find(variable) == model.end()){
 			model[variable] = std::make_unique<DataT<float>>();
 		}
@@ -334,12 +335,7 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 		std::cout << "Error loading Uintah file " << tinyxml_error_string(err) << "\n";
 		std::exit(1);
 	}
-	XMLElement *child = doc.FirstChildElement("Uintah_timestep");
-	if (!child){
-		std::cout << "No 'Uintah_timestep' root XML node found\n";
-		std::exit(1);
-	}
-	if (!read_uintah_timestep(file_name, child, model)){
+	if (!read_uintah_datafile(file_name, model)) {
 		std::cout << "Error reading Uintah data\n";
 		std::exit(1);
 	}
@@ -361,7 +357,7 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 		z_range[1] = std::max(z_range[1], positions->data[i + 2]);
 	}
 
-	std::cout << "Saving out Uintah data with " << positions->data.size() / 3 << " particles"
+	std::cout << "Read Uintah data with " << positions->data.size() / 3 << " particles"
 		<< "\nPositions range from { " << x_range[0] << ", " << y_range[0]
 		<< ", " << z_range[0] << " } to { " << x_range[1] << ", "
 		<< y_range[1] << ", " << z_range[1] << " }\n";
