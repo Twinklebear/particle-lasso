@@ -221,19 +221,32 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 		}
 	}
 	if (num_particles > 0){
-		std::cout << "Number of particles" << std::endl;
-		if (model.find(variable) == model.end()){
-			model[variable] = std::make_unique<DataT<float>>();
-		}
+		const bool need_new_array = model.find(variable) == model.end();
 		// Particle positions are p.x
+		// TODO: This should handle arbitrary ParticleVariable<Point> types
 		if (variable == "p.x"){
-			return read_particles(base_path.join(FileName(file_name)), model["positions"].get(),
+			if (need_new_array) {
+				model[variable] = std::make_unique<DataT<float>>();
+			}
+			return read_particles(base_path.join(FileName(file_name)), model[variable].get(),
 						num_particles, start, end);
 		} else if (type == "ParticleVariable<double>"){
-			return read_particle_attribute<double, float>(base_path.join(FileName(file_name)),
+			if (need_new_array) {
+				model[variable] = std::make_unique<DataT<double>>();
+			}
+			return read_particle_attribute<double>(base_path.join(FileName(file_name)),
 					model[variable].get(), num_particles, start, end);
 		} else if (type == "ParticleVariable<float>"){
+			if (need_new_array) {
+				model[variable] = std::make_unique<DataT<float>>();
+			}
 			return read_particle_attribute<float>(base_path.join(FileName(file_name)),
+					model[variable].get(), num_particles, start, end);
+		} else if (type == "ParticleVariable<long64>"){
+			if (need_new_array) {
+				model[variable] = std::make_unique<DataT<int64_t>>();
+			}
+			return read_particle_attribute<int64_t>(base_path.join(FileName(file_name)),
 					model[variable].get(), num_particles, start, end);
 		}
 	}
@@ -341,7 +354,7 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 	}
 
 	// Find the bounds of the data's positions
-	auto positions = dynamic_cast<DataT<float>*>(model["positions"].get());
+	auto positions = dynamic_cast<DataT<float>*>(model["p.x"].get());
 	float x_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
 	float y_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
 	float z_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };

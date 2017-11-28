@@ -43,6 +43,8 @@ struct Data {
 	virtual const std::type_info& type() const = 0;
 	// Dump the data in binary format to the output stream as raw data
 	virtual void write(std::ofstream &os) const = 0;
+	// Get the element at i as a float
+	virtual float get_float(const size_t i) const = 0;
 	virtual ~Data(){}
 };
 
@@ -57,6 +59,9 @@ struct DataT : Data {
 		std::cout << "Writing " << data.size() << " " << typeid(T).name()
 			<< ", file is " << sizeof(T) * data.size() << " bytes\n";
 		os.write(reinterpret_cast<const char*>(data.data()), sizeof(T) * data.size());
+	}
+	float get_float(const size_t i) const override {
+		return static_cast<float>(data[i]);
 	}
 };
 
