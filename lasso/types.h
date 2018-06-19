@@ -48,6 +48,8 @@ struct Data {
 	virtual void write(std::ofstream &os) const = 0;
 	// Get the element at i as a float
 	virtual float get_float(const size_t i) const = 0;
+	// Get the number of elements in the array
+	virtual size_t size() const = 0;
 	virtual ~Data(){}
 };
 
@@ -65,6 +67,9 @@ struct DataT : Data {
 	}
 	float get_float(const size_t i) const override {
 		return static_cast<float>(data[i]);
+	}
+	size_t size() const override {
+		return data.size();
 	}
 };
 
