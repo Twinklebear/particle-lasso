@@ -352,27 +352,7 @@ void import_uintah(const FileName &file_name, ParticleModel &model){
 		std::cout << "Error reading Uintah data\n";
 		std::exit(1);
 	}
-
-	// Find the bounds of the data's positions
 	auto positions = dynamic_cast<DataT<float>*>(model["p.x"].get());
-	float x_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
-	float y_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
-	float z_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
-
-	for (size_t i = 0; i < positions->data.size(); i += 3){
-		x_range[0] = std::min(x_range[0], positions->data[i]);
-		x_range[1] = std::max(x_range[1], positions->data[i]);
-
-		y_range[0] = std::min(y_range[0], positions->data[i + 1]);
-		y_range[1] = std::max(y_range[1], positions->data[i + 1]);
-
-		z_range[0] = std::min(z_range[0], positions->data[i + 2]);
-		z_range[1] = std::max(z_range[1], positions->data[i + 2]);
-	}
-
-	std::cout << "Read Uintah data with " << positions->data.size() / 3 << " particles"
-		<< "\nPositions range from { " << x_range[0] << ", " << y_range[0]
-		<< ", " << z_range[0] << " } to { " << x_range[1] << ", "
-		<< y_range[1] << ", " << z_range[1] << " }\n";
+	std::cout << "Read Uintah data with " << positions->data.size() / 3 << " particles\n";
 }
 

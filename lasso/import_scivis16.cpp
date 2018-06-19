@@ -49,27 +49,6 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 	file.read(reinterpret_cast<char*>(concentration->data.data()),
 			concentration->data.size() * sizeof(float));
 
-	float x_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
-	float y_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
-	float z_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
-
-	for (size_t i = 0; i < positions->data.size(); i += 3){
-		x_range[0] = std::min(x_range[0], positions->data[i]);
-		x_range[1] = std::max(x_range[1], positions->data[i]);
-
-		y_range[0] = std::min(y_range[0], positions->data[i + 1]);
-		y_range[1] = std::max(y_range[1], positions->data[i + 1]);
-
-		z_range[0] = std::min(z_range[0], positions->data[i + 2]);
-		z_range[1] = std::max(z_range[1], positions->data[i + 2]);
-	}
-
-	float concentration_range[2] = { std::numeric_limits<float>::max(), std::numeric_limits<float>::lowest() };
-	for (size_t i = 0; i < concentration->data.size(); ++i){
-		concentration_range[0] = std::min(x_range[0], concentration->data[i]);
-		concentration_range[1] = std::max(x_range[1], concentration->data[i]);
-	}
-
 	model["positions"] = std::move(positions);
 	model["velocity"] = std::move(velocity);
 	model["concentration"] = std::move(concentration);

@@ -47,8 +47,7 @@ void import_las(const FileName &file_name, ParticleModel &model){
 			}
 		}
 	}
-	std::cout << "Discarded " << n_discarded << " noise classified points\n"
-		<< "Will save " << positions->data.size() / 3 << " points to output\n";
+	std::cout << "Discarded " << n_discarded << " noise classified points\n";
 	model["positions"] = std::move(positions);
 	model["colors"] = std::move(colors);
 }
