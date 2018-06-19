@@ -32,7 +32,9 @@ std::ostream& operator<<(std::ostream &os, const vec3f &v);
 struct FileName {
 	std::string file_name;
 
+	FileName() = default;
 	FileName(const std::string &file_name);
+	FileName& operator=(const std::string &file_name);
 	FileName path() const;
 	std::string extension() const;
 	FileName join(const FileName &other) const;

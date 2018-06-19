@@ -14,6 +14,10 @@ std::ostream& operator<<(std::ostream &os, const vec3f &v){
 }
 
 FileName::FileName(const std::string &file_name) : file_name(file_name){}
+FileName& FileName::operator=(const std::string &name) {
+	file_name = name;
+	return *this;
+}
 FileName FileName::path() const {
 	size_t fnd = file_name.rfind("/");
 	if (fnd != std::string::npos){
