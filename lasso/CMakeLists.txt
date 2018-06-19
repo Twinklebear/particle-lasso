@@ -4,7 +4,7 @@ set(LASSO_SRC import_scivis16.cpp import_xyz.cpp
 	import_uintah.cpp tinyxml2.cpp types.cpp)
 
 set(LASSO_HEADERS import_scivis16.h import_xyz.h
-	import_uintah.h tinyxml2.h types.h)
+	import_uintah.h tinyxml2.h types.h particle_lasso.h)
 
 configure_file(particle_lasso_cfg.h.in particle_lasso_cfg.h)
 
