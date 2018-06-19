@@ -25,6 +25,9 @@ FileName FileName::path() const {
 	}
 	return FileName("");
 }
+bool FileName::empty() const {
+	return file_name.empty();
+}
 std::string FileName::extension() const {
 	size_t fnd = file_name.rfind(".");
 	if (fnd != std::string::npos){

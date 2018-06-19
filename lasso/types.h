@@ -36,6 +36,7 @@ struct FileName {
 	FileName(const std::string &file_name);
 	FileName& operator=(const std::string &file_name);
 	FileName path() const;
+	bool empty() const;
 	std::string extension() const;
 	FileName join(const FileName &other) const;
 };
