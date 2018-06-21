@@ -63,6 +63,8 @@ void import_cosmic_web(const FileName &file_name, ParticleModel &model) {
 
 	auto positions = std::make_unique<DataT<float>>();
 	auto velocities = std::make_unique<DataT<float>>();
+	positions->data.reserve(header.np_local * 3);
+	velocities->data.reserve(header.np_local * 3);
 
 	for (int i = 0; i < header.np_local; ++i) { 
 		vec3f position, velocity;

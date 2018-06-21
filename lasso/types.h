@@ -37,6 +37,7 @@ struct FileName {
 
 	FileName() = default;
 	FileName(const std::string &file_name);
+	FileName(const char *file_name);
 	FileName& operator=(const std::string &file_name);
 	FileName path() const;
 	const char* c_str() const;

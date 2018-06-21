@@ -26,7 +26,11 @@ if (PARTICLE_LASSO_ENABLE_LIDAR)
 	target_link_libraries(particle_lasso PUBLIC ${LASTOOLS_LIBRARIES})
 endif()
 
-set_property(TARGET particle_lasso PROPERTY POSITION_INDEPENDENT_CODE ON)
+set_target_properties(particle_lasso
+	PROPERTIES
+	CXX_STANDARD 14
+	CXX_STANDARD_REQUIRED ON
+	POSITION_INDEPENDENT_CODE ON)
 
 install(TARGETS particle_lasso EXPORT particle_lassoConfig
 	LIBRARY DESTINATION lib
