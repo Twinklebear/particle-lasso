@@ -46,7 +46,6 @@ void import_cosmic_web(const FileName &file_name, ParticleModel &model) {
 
 	// Compute the brick offset for this file, given in the last 3 numbers of the name
 	std::string brick_name = file_name.name();
-	std::cout << "brick name = " << brick_name << "\n";
 	brick_name = brick_name.substr(brick_name.size() - 3, 3);
 	const int brick_number = std::stoi(brick_name);
 
