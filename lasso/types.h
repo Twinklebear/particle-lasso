@@ -23,7 +23,10 @@ T clamp(T x, T lo, T hi){
 struct vec3f {
 	float x, y, z;
 
+	// TODO Will: Why are these initialized to 1?
 	vec3f(float x = 1.0, float y = 1.0, float z = 1.0);
+
+	vec3f& operator+=(const vec3f &a);
 };
 vec3f operator+(const vec3f &a, const vec3f &b);
 vec3f operator*(const vec3f &a, const vec3f &b);
@@ -36,9 +39,11 @@ struct FileName {
 	FileName(const std::string &file_name);
 	FileName& operator=(const std::string &file_name);
 	FileName path() const;
+	const char* c_str() const;
 	bool empty() const;
 	std::string extension() const;
 	FileName join(const FileName &other) const;
+	std::string name() const;
 };
 std::ostream& operator<<(std::ostream &os, const FileName &f);
 
