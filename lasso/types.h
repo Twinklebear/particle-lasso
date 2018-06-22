@@ -24,7 +24,8 @@ struct vec3f {
 	float x, y, z;
 
 	// TODO Will: Why are these initialized to 1?
-	vec3f(float x = 1.0, float y = 1.0, float z = 1.0);
+	vec3f(float x = 1.0);
+	vec3f(float x, float y, float z);
 
 	vec3f& operator+=(const vec3f &a);
 };
