@@ -21,6 +21,5 @@ if (PARTICLE_LASSO_ENABLE_LIDAR)
 	find_package(LAStools REQUIRED)
 endif()
 
-add_subdirectory(lasso)
-add_subdirectory(vislight_plugin)
+add_subdirectory(src)
 
