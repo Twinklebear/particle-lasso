@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 project(PARTICLE_LASSO)
 
 # Bump up warning levels appropriately for each compiler
@@ -22,4 +22,10 @@ if (PARTICLE_LASSO_ENABLE_LIDAR)
 endif()
 
 add_subdirectory(src)
+
+option(PARTICLE_LASSO_OSPRAY_IMPORTER
+	"Build the OSPRay Example Viewer scenegraph importer" OFF)
+if (PARTICLE_LASSO_OSPRAY_IMPORTER)
+	add_subdirectory(ospray_sg)
+endif()
 
