@@ -8,6 +8,7 @@
 #include "tinyxml2.h"
 #include "import_uintah.h"
 
+using namespace pl;
 using namespace tinyxml2;
 
 struct UintahParticle {

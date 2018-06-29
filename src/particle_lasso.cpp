@@ -1,5 +1,7 @@
 #include "particle_lasso.h"
 
+using namespace pl;
+
 ParticleModel lasso_particles(const FileName &input) {
 	ParticleModel model;
 #ifdef PARTICLE_LASSO_ENABLE_LIDAR

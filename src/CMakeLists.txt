@@ -19,6 +19,7 @@ endif()
 
 add_library(particle_lasso ${LASSO_SRC})
 target_include_directories(particle_lasso PUBLIC
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
 	$<INSTALL_INTERFACE:include/particle_lasso>)
 

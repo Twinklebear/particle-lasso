@@ -12,5 +12,9 @@
 #include "import_las.h"
 #endif
 
+namespace pl {
+
 ParticleModel lasso_particles(const FileName &file);
+
+}
 

@@ -3,6 +3,8 @@
 #include "types.h"
 #include "import_las.h"
 
+using namespace pl;
+
 void import_las(const FileName &file_name, ParticleModel &model){
 	LASreadOpener read_opener;
 	read_opener.set_file_name(file_name.file_name.c_str());

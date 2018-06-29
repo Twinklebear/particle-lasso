@@ -8,6 +8,8 @@
 #include <fstream>
 #include "import_scivis16.h"
 
+using namespace pl;
+
 struct Header {
 	int32_t _pad3;
 	int32_t size;

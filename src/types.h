@@ -8,6 +8,8 @@
 #include <iostream>
 #include <typeinfo>
 
+namespace pl {
+
 template<typename T>
 T clamp(T x, T lo, T hi){
 	if (x < lo){
@@ -83,4 +85,6 @@ struct DataT : Data {
 };
 
 using ParticleModel = std::unordered_map<std::string, std::shared_ptr<Data>>;
+
+}
 

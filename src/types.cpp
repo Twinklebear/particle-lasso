@@ -1,6 +1,8 @@
 #include <ostream>
 #include "types.h"
 
+using namespace pl;
+
 vec3f::vec3f(float x) : x(x), y(x), z(x) {}
 vec3f::vec3f(float x, float y, float z) : x(x), y(y), z(z) {}
 vec3f& vec3f::operator+=(const vec3f &a) {

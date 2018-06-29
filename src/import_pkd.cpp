@@ -5,6 +5,7 @@
 #include "types.h"
 #include "import_pkd.h"
 
+using namespace pl;
 using namespace tinyxml2;
 
 std::string tinyxml_error_string(const XMLError e);
