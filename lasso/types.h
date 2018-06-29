@@ -1,5 +1,4 @@
-#ifndef TYPES_H
-#define TYPES_H
+#pragma once
 
 #include <vector>
 #include <unordered_map>
@@ -46,6 +45,9 @@ struct FileName {
 	std::string extension() const;
 	FileName join(const FileName &other) const;
 	std::string name() const;
+
+private:
+	void normalize_separators();
 };
 std::ostream& operator<<(std::ostream &os, const FileName &f);
 
@@ -82,6 +84,4 @@ struct DataT : Data {
 
 // TODO: Make the unique ptrs into shared ptrs.
 using ParticleModel = std::unordered_map<std::string, std::unique_ptr<Data>>;
-
-#endif
 

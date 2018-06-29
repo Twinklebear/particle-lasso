@@ -21,10 +21,15 @@ std::ostream& operator<<(std::ostream &os, const vec3f &v){
 	return os;
 }
 
-FileName::FileName(const std::string &file_name) : file_name(file_name){}
-FileName::FileName(const char *file_name) : file_name(file_name) {}
+FileName::FileName(const std::string &file_name) : file_name(file_name){
+	normalize_separators();
+}
+FileName::FileName(const char *file_name) : file_name(file_name) {
+	normalize_separators();
+}
 FileName& FileName::operator=(const std::string &name) {
 	file_name = name;
+	normalize_separators();
 	return *this;
 }
 const char* FileName::c_str() const {
@@ -61,6 +66,17 @@ std::string FileName::name() const {
 		n = n.substr(0, fnd);
 	}
 	return n;
+}
+void FileName::normalize_separators() {
+#ifdef _WIN32
+	std::cout << "normalize: fname = " << file_name << "\n";
+	for (char &c : file_name) {
+		if (c == '\\') {
+			c = '/';
+		}
+	}
+	std::cout << "post: " << file_name << "\n";
+#endif
 }
 std::ostream& operator<<(std::ostream &os, const FileName &f){
 	os << f.file_name;
