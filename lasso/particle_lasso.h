@@ -12,3 +12,5 @@
 #include "import_las.h"
 #endif
 
+ParticleModel lasso_particles(const FileName &file);
+
