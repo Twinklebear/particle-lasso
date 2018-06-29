@@ -24,15 +24,12 @@ T clamp(T x, T lo, T hi){
 struct vec3f {
 	float x, y, z;
 
-	// TODO Will: Why are these initialized to 1?
+	// TODO Will: Why did I initialize these to 1?
 	vec3f(float x = 1.0);
 	vec3f(float x, float y, float z);
 
 	vec3f& operator+=(const vec3f &a);
 };
-vec3f operator+(const vec3f &a, const vec3f &b);
-vec3f operator*(const vec3f &a, const vec3f &b);
-std::ostream& operator<<(std::ostream &os, const vec3f &v);
 
 struct FileName {
 	std::string file_name;
@@ -51,7 +48,6 @@ struct FileName {
 private:
 	void normalize_separators();
 };
-std::ostream& operator<<(std::ostream &os, const FileName &f);
 
 struct Data {
 	virtual const std::type_info& type() const = 0;
@@ -87,4 +83,9 @@ struct DataT : Data {
 using ParticleModel = std::unordered_map<std::string, std::shared_ptr<Data>>;
 
 }
+
+pl::vec3f operator+(const pl::vec3f &a, const pl::vec3f &b);
+pl::vec3f operator*(const pl::vec3f &a, const pl::vec3f &b);
+std::ostream& operator<<(std::ostream &os, const pl::vec3f &v);
+std::ostream& operator<<(std::ostream &os, const pl::FileName &f);
 

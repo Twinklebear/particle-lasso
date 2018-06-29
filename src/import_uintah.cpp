@@ -337,7 +337,7 @@ bool read_uintah_timestep(const FileName &file_name, XMLElement *node, ParticleM
 	return true;
 }
 
-void import_uintah(const FileName &file_name, ParticleModel &model){
+void pl::import_uintah(const FileName &file_name, ParticleModel &model){
 	std::cout << "Importing Uintah data from " << file_name << "\n";
 	if (!read_uintah_datafile(file_name, model)) {
 		std::cout << "Error reading Uintah data\n";

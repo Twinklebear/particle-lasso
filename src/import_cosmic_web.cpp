@@ -32,7 +32,7 @@ std::ostream& operator<<(std::ostream &os, const CosmicWebHeader &h) {
 	return os;
 }
 
-void import_cosmic_web(const FileName &file_name, ParticleModel &model) {
+void pl::import_cosmic_web(const FileName &file_name, ParticleModel &model) {
 	std::ifstream fin(file_name.c_str(), std::ios::binary);
 
 	if (!fin.good()) {

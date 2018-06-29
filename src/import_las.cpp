@@ -5,7 +5,7 @@
 
 using namespace pl;
 
-void import_las(const FileName &file_name, ParticleModel &model){
+void pl::import_las(const FileName &file_name, ParticleModel &model){
 	LASreadOpener read_opener;
 	read_opener.set_file_name(file_name.file_name.c_str());
 	LASreader *reader = read_opener.open();

@@ -17,10 +17,10 @@ if (PARTICLE_LASSO_ENABLE_LIDAR)
 	set(LASSO_HEADERS ${LASSO_HEADERS} import_las.h)
 endif()
 
-add_library(particle_lasso ${LASSO_SRC})
+add_library(particle_lasso STATIC ${LASSO_SRC})
 target_include_directories(particle_lasso PUBLIC
-	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
+	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
 	$<INSTALL_INTERFACE:include/particle_lasso>)
 
 if (PARTICLE_LASSO_ENABLE_LIDAR)

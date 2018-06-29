@@ -21,7 +21,7 @@ struct Header {
 
 // This follows the reading example shown in code/max_concentration.cpp that's
 // included in the SciVis16 data download
-void import_scivis16(const FileName &file_name, ParticleModel &model){
+void pl::import_scivis16(const FileName &file_name, ParticleModel &model){
 	std::cout << "Reading SciVis16 data from '" << file_name << "'\n";
 
 	// Offset from the example code of reading the data

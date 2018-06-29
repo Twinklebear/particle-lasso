@@ -6,7 +6,7 @@
 
 using namespace pl;
 
-void import_xyz(const FileName &file_name, ParticleModel &model){
+void pl::import_xyz(const FileName &file_name, ParticleModel &model){
 	std::ifstream file{file_name.file_name.c_str()};
 
 	size_t num_atoms = 0;
