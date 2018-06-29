@@ -222,11 +222,11 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 	}
 	if (num_particles > 0){
 		const bool need_new_array = model.find(variable) == model.end();
-		// Particle positions are p.x
+		// Particle positions are p.x, rename them to position when we load them
 		// TODO: This should handle arbitrary ParticleVariable<Point> types
 		if (variable == "p.x"){
 			if (need_new_array) {
-				model[variable] = std::make_unique<DataT<float>>();
+				model["positions"] = std::make_unique<DataT<float>>();
 			}
 			return read_particles(base_path.join(FileName(file_name)), model[variable].get(),
 						num_particles, start, end);
@@ -342,17 +342,11 @@ bool read_uintah_timestep(const FileName &file_name, XMLElement *node, ParticleM
 
 void import_uintah(const FileName &file_name, ParticleModel &model){
 	std::cout << "Importing Uintah data from " << file_name << "\n";
-	XMLDocument doc;
-	XMLError err = doc.LoadFile(file_name.file_name.c_str());
-	if (err != XML_SUCCESS){
-		std::cout << "Error loading Uintah file " << tinyxml_error_string(err) << "\n";
-		std::exit(1);
-	}
 	if (!read_uintah_datafile(file_name, model)) {
 		std::cout << "Error reading Uintah data\n";
-		std::exit(1);
+		throw std::runtime_error("Failed to read Uintah data");
 	}
-	auto positions = dynamic_cast<DataT<float>*>(model["p.x"].get());
+	auto positions = dynamic_cast<DataT<float>*>(model["positions"].get());
 	std::cout << "Read Uintah data with " << positions->data.size() / 3 << " particles\n";
 }
 
