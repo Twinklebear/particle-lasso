@@ -69,13 +69,11 @@ std::string FileName::name() const {
 }
 void FileName::normalize_separators() {
 #ifdef _WIN32
-	std::cout << "normalize: fname = " << file_name << "\n";
 	for (char &c : file_name) {
 		if (c == '\\') {
 			c = '/';
 		}
 	}
-	std::cout << "post: " << file_name << "\n";
 #endif
 }
 std::ostream& operator<<(std::ostream &os, const FileName &f){
