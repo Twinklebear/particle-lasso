@@ -16,8 +16,8 @@ void import_xyz(const FileName &file_name, ParticleModel &model){
 	std::cout << "XYZ File '" << file_name << "'\nContains " << num_atoms
 		<< " atoms\nDescription: " << description << "\n";
 
-	auto positions = std::make_unique<DataT<float>>();
-	auto atom_type = std::make_unique<DataT<int>>();
+	auto positions = std::make_shared<DataT<float>>();
+	auto atom_type = std::make_shared<DataT<int>>();
 	int next_atom_id = 0;
 	std::unordered_map<std::string, int> atom_type_id;
 

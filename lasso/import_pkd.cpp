@@ -22,7 +22,7 @@ void load_pkd_data(XMLNode *elem, const FileName &bin_file, ParticleModel &model
 				throw std::runtime_error("Unsupported PKD format");
 			}
 			fin.seekg(ofs);
-			auto pos = std::make_unique<DataT<float>>();
+			auto pos = std::make_shared<DataT<float>>();
 			pos->data.resize(count * 3);
 			const size_t read_bytes = pos->data.size() * sizeof(float);
 			if (!fin.read(reinterpret_cast<char*>(pos->data.data()), read_bytes)) {
@@ -39,7 +39,7 @@ void load_pkd_data(XMLNode *elem, const FileName &bin_file, ParticleModel &model
 				throw std::runtime_error("Unsupported PKD attrib format");
 			}
 			fin.seekg(ofs);
-			auto attrib = std::make_unique<DataT<float>>();
+			auto attrib = std::make_shared<DataT<float>>();
 			attrib->data.resize(count);
 			const size_t read_bytes = attrib->data.size() * sizeof(float);
 			if (!fin.read(reinterpret_cast<char*>(attrib->data.data()), read_bytes)) {
@@ -48,7 +48,7 @@ void load_pkd_data(XMLNode *elem, const FileName &bin_file, ParticleModel &model
 			model[name] = std::move(attrib);
 		} else if (std::strcmp(c->Value(), "radius") == 0) {
 			const float radius = c->FloatText();
-			auto attrib = std::make_unique<DataT<float>>();
+			auto attrib = std::make_shared<DataT<float>>();
 			attrib->data.push_back(radius);
 			model["radius"] = std::move(attrib);
 		} else if (std::strcmp(c->Value(), "useOldAlphaSpheresCode") == 0) {

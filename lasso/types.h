@@ -82,6 +82,5 @@ struct DataT : Data {
 	}
 };
 
-// TODO: Make the unique ptrs into shared ptrs.
-using ParticleModel = std::unordered_map<std::string, std::unique_ptr<Data>>;
+using ParticleModel = std::unordered_map<std::string, std::shared_ptr<Data>>;
 

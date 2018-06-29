@@ -32,11 +32,11 @@ void import_scivis16(const FileName &file_name, ParticleModel &model){
 	std::cout << "File contains " << header.size << " particles for timestep "
 		<< header.step << "\n";
 
-	auto positions = std::make_unique<DataT<float>>();
+	auto positions = std::make_shared<DataT<float>>();
 	positions->data.resize(header.size * 3);
-	auto velocity = std::make_unique<DataT<float>>();
+	auto velocity = std::make_shared<DataT<float>>();
 	velocity->data.resize(header.size * 3);
-	auto concentration = std::make_unique<DataT<float>>();
+	auto concentration = std::make_shared<DataT<float>>();
 	concentration->data.resize(header.size);
 
 	file.seekg(4, std::ios_base::cur);

@@ -60,8 +60,8 @@ void import_cosmic_web(const FileName &file_name, ParticleModel &model) {
 	const float step = 768.f;
 	const vec3f offset(step * brick_x, step * brick_y, step * brick_z);
 
-	auto positions = std::make_unique<DataT<float>>();
-	auto velocities = std::make_unique<DataT<float>>();
+	auto positions = std::make_shared<DataT<float>>();
+	auto velocities = std::make_shared<DataT<float>>();
 	positions->data.reserve(header.np_local * 3);
 	velocities->data.reserve(header.np_local * 3);
 

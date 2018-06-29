@@ -20,8 +20,8 @@ void import_las(const FileName &file_name, ParticleModel &model){
 		|| reader->header.point_data_format == 3
 		|| reader->header.point_data_format == 5;
 
-	auto positions = std::make_unique<DataT<float>>();
-	auto colors = std::make_unique<DataT<uint8_t>>();
+	auto positions = std::make_shared<DataT<float>>();
+	auto colors = std::make_shared<DataT<uint8_t>>();
 	positions->data.reserve(reader->npoints * 3);
 	colors->data.reserve(reader->npoints);
 	const float inv_max_uint16 = 1.f / std::numeric_limits<uint16_t>::max();

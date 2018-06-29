@@ -222,25 +222,25 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 		// TODO: This should handle arbitrary ParticleVariable<Point> types
 		if (variable == "p.x"){
 			if (need_new_array) {
-				model["positions"] = std::make_unique<DataT<float>>();
+				model["positions"] = std::make_shared<DataT<float>>();
 			}
 			return read_particles(base_path.join(FileName(file_name)), model[variable].get(),
 						num_particles, start, end);
 		} else if (type == "ParticleVariable<double>"){
 			if (need_new_array) {
-				model[variable] = std::make_unique<DataT<double>>();
+				model[variable] = std::make_shared<DataT<double>>();
 			}
 			return read_particle_attribute<double>(base_path.join(FileName(file_name)),
 					model[variable].get(), num_particles, start, end);
 		} else if (type == "ParticleVariable<float>"){
 			if (need_new_array) {
-				model[variable] = std::make_unique<DataT<float>>();
+				model[variable] = std::make_shared<DataT<float>>();
 			}
 			return read_particle_attribute<float>(base_path.join(FileName(file_name)),
 					model[variable].get(), num_particles, start, end);
 		} else if (type == "ParticleVariable<long64>"){
 			if (need_new_array) {
-				model[variable] = std::make_unique<DataT<int64_t>>();
+				model[variable] = std::make_shared<DataT<int64_t>>();
 			}
 			return read_particle_attribute<int64_t>(base_path.join(FileName(file_name)),
 					model[variable].get(), num_particles, start, end);
