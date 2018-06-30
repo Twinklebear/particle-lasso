@@ -23,6 +23,10 @@ void import_particle_lasso(std::shared_ptr<Node> world, const ospcommon::FileNam
 	geom->createChild("offset_center", "int", int(0));
 	geom->createChild("radius", "float", 1.f);
 
+	// TODO: Colormap the particles by their attribute using an sg::TransferFunction
+	// then we can just store the color as an RGBA8 attribute. This is
+	// probably easier/faster than fixing up my colormapped spheres module for Embree3
+
 	auto spheres = std::make_shared<DataVector1f>();
 	const pl::DataT<float> *positions = dynamic_cast<pl::DataT<float>*>(model["positions"].get());
 	std::copy(positions->data.begin(), positions->data.end(),
