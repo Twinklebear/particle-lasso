@@ -63,6 +63,7 @@ void load_pkd_data(XMLNode *elem, const FileName &bin_file, ParticleModel &model
 
 void pl::import_pkd(const FileName &file_name, ParticleModel &model) {
 	const FileName bin_file = file_name.path().join(FileName(file_name.name() + ".pkdbin"));
+	std::cout << "PKD bin file = " << bin_file << "\n";
 	XMLDocument doc;
 	XMLError err = doc.LoadFile(file_name.c_str());
 	if (err != XML_SUCCESS){
