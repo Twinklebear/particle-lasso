@@ -1,5 +1,3 @@
-#pragma once
-
 #include <stdexcept>
 #include "tinyxml2.h"
 #include "types.h"
