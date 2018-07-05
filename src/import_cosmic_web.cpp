@@ -67,16 +67,16 @@ void pl::import_cosmic_web(const FileName &file_name, ParticleModel &model) {
 	positions->data.reserve(header.np_local * 3);
 	velocities->data.reserve(header.np_local * 3);
 
-	for (int i = 0; i < header.np_local; ++i) { 
-		vec3f position, velocity;
+	std::vector<char> file_data(header.np_local * 2 * sizeof(vec3f), 0);
+	if (!fin.read(file_data.data(), file_data.size())) {
+		throw std::runtime_error("Failed to read cosmic web file");
+	}
 
-		if (!fin.read(reinterpret_cast<char*>(&position), sizeof(vec3f))) {
-			throw std::runtime_error("Failed to read position for particle");
-		}
-		if (!fin.read(reinterpret_cast<char*>(&velocity), sizeof(vec3f))) {
-			throw std::runtime_error("Failed to read velocity for particle");
-		}
-		position += offset;
+	vec3f *vecs = reinterpret_cast<vec3f*>(file_data.data());
+
+	for (int i = 0; i < header.np_local; ++i) { 
+		const vec3f position = vecs[i * 2] + offset;
+		const vec3f velocity = vecs[i * 2 + 1];
 
 		positions->data.push_back(position.x);
 		positions->data.push_back(position.y);
