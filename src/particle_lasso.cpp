@@ -26,6 +26,9 @@ ParticleModel pl::lasso_particles(const FileName &input) {
 	} else if (input.extension() == "dat") {
 		std::cout << "Importing Cosmic Web data\n";
 		import_cosmic_web(input, model);
+	} else if (input.extension() == "gro") {
+		std::cout << "Importing GROMACS data\n";
+		import_gromacs(input, model);
 	}
 	return model;
 }

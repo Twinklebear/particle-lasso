@@ -7,6 +7,7 @@
 #include "import_xyz.h"
 #include "import_cosmic_web.h"
 #include "import_pkd.h"
+#include "import_gromacs.h"
 
 #ifdef PARTICLE_LASSO_ENABLE_LIDAR
 #include "import_las.h"

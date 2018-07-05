@@ -82,6 +82,8 @@ struct DataT : Data {
 
 using ParticleModel = std::unordered_map<std::string, std::shared_ptr<Data>>;
 
+bool starts_with(const std::string &a, const std::string &prefix);
+
 }
 
 pl::vec3f operator+(const pl::vec3f &a, const pl::vec3f &b);

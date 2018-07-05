@@ -83,3 +83,10 @@ std::ostream& operator<<(std::ostream &os, const FileName &f){
 	return os;
 }
 
+bool pl::starts_with(const std::string &a, const std::string &prefix) {
+	if (a.size() < prefix.size()) {
+		return false;
+	}
+	return std::equal(prefix.begin(), prefix.end(), a.begin());
+}
+
