@@ -44,7 +44,13 @@ void import_particle_lasso(std::shared_ptr<Node> world, const ospcommon::FileNam
 
 OSPSG_REGISTER_IMPORT_FUNCTION(import_particle_lasso, lasso);
 
-extern "C" __declspec(dllexport) void ospray_init_module_particle_lasso() {
+#ifdef _WIN32
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT
+#endif
+
+extern "C" DLLEXPORT void ospray_init_module_particle_lasso() {
 	std::cout << "#particle_lasso: loading 'particle_lasso' module" << std::endl;
 }
 
