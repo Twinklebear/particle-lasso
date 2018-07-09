@@ -88,6 +88,8 @@ bool starts_with(const std::string &a, const std::string &prefix);
 
 pl::vec3f operator+(const pl::vec3f &a, const pl::vec3f &b);
 pl::vec3f operator*(const pl::vec3f &a, const pl::vec3f &b);
+pl::vec3f operator-(const pl::vec3f &a, const pl::vec3f &b);
+pl::vec3f operator/(const pl::vec3f &a, const pl::vec3f &b);
 std::ostream& operator<<(std::ostream &os, const pl::vec3f &v);
 std::ostream& operator<<(std::ostream &os, const pl::FileName &f);
 

@@ -18,6 +18,12 @@ vec3f operator+(const vec3f &a, const vec3f &b){
 vec3f operator*(const vec3f &a, const vec3f &b){
 	return vec3f(a.x * b.x, a.y * b.y, a.z * b.z);
 }
+vec3f operator-(const vec3f &a, const vec3f &b){
+	return vec3f(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+vec3f operator/(const vec3f &a, const vec3f &b){
+	return vec3f(a.x / b.x, a.y / b.y, a.z / b.z);
+}
 std::ostream& operator<<(std::ostream &os, const vec3f &v){
 	os << "[ " << v.x << ", " << v.y << ", " << v.z << " ]";
 	return os;
