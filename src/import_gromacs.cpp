@@ -33,19 +33,22 @@ void pl::import_gromacs(const FileName &file_name, ParticleModel &model) {
 			num_particles = std::stoull(line);
 			positions->data.reserve(num_particles * 3);
 			velocities->data.reserve(num_particles * 3);
-		} else if (!line.empty()) {
-			float px, py, pz, vx, vy, vz;
-			int id;
-			sscanf(line.data(), "%dDZATO DZ%d %f %f %f %f %f %f", &id,
-					&id, &px, &py, &pz, &vx, &vy, &vz);
 
-			positions->data.push_back(px);
-			positions->data.push_back(py);
-			positions->data.push_back(pz);
+			for (size_t i = 0; i < num_particles; ++i) {
+				std::getline(fin, line);
+				float px, py, pz, vx, vy, vz;
+				int id;
+				sscanf(line.data(), "%dDZATO DZ%d %f %f %f %f %f %f", &id,
+						&id, &px, &py, &pz, &vx, &vy, &vz);
 
-			velocities->data.push_back(vx);
-			velocities->data.push_back(vy);
-			velocities->data.push_back(vz);
+				positions->data.push_back(px);
+				positions->data.push_back(py);
+				positions->data.push_back(pz);
+
+				velocities->data.push_back(vx);
+				velocities->data.push_back(vy);
+				velocities->data.push_back(vz);
+			}
 		}
 	}
 	std::cout << "Loaded " << num_particles << " particles\n";
