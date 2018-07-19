@@ -15,7 +15,7 @@
 
 namespace pl {
 
-ParticleModel lasso_particles(const FileName &file);
+std::vector<ParticleModel> lasso_particles(const FileName &input);
 
 }
 

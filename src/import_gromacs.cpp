@@ -7,11 +7,8 @@
 using namespace pl;
 
 // Original importer from @hoangthaiduong
-void pl::import_gromacs(const FileName &file_name, ParticleModel &model) {
+void pl::import_gromacs(const FileName &file_name, std::vector<ParticleModel> &timesteps) {
 	std::ifstream fin(file_name.c_str());
-
-	auto positions = std::make_shared<DataT<float>>();
-	auto velocities = std::make_shared<DataT<float>>();
 
 	std::cout << "Loading GROMACS File '" << file_name << "'\n";
 
@@ -20,10 +17,6 @@ void pl::import_gromacs(const FileName &file_name, ParticleModel &model) {
 	size_t num_particles = 0;
 	while (std::getline(fin, line)) {
 		const bool new_timestep = starts_with(line, "Generated");
-		// Only read the first timestep for now
-		if (new_timestep && time != -1) {
-			break;
-		}
 		if (new_timestep) {
 			auto fnd = line.find("=");
 			time = std::stof(line.substr(fnd + 1));
@@ -31,28 +24,30 @@ void pl::import_gromacs(const FileName &file_name, ParticleModel &model) {
 			// Read number of particles
 			std::getline(fin, line);
 			num_particles = std::stoull(line);
-			positions->data.reserve(num_particles * 3);
-			velocities->data.reserve(num_particles * 3);
+
+			auto positions = std::make_shared<DataT<float>>();
+			auto velocities = std::make_shared<DataT<float>>();
+			positions->data.resize(num_particles * 3);
+			velocities->data.resize(num_particles * 3);
+			auto &pos = positions->data;
+			auto &vel = velocities->data;
 
 			for (size_t i = 0; i < num_particles; ++i) {
 				std::getline(fin, line);
 				float px, py, pz, vx, vy, vz;
 				int id;
-				sscanf(line.data(), "%dDZATO DZ%d %f %f %f %f %f %f", &id,
-						&id, &px, &py, &pz, &vx, &vy, &vz);
+				sscanf(line.data(), "%dDZATO DZ%d %f %f %f %f %f %f", &id, &id,
+						&pos[i * 3], &pos[i * 3 + 1], &pos[i * 3 + 2],
+						&vel[i * 3], &vel[i * 3 + 1], &vel[i * 3 + 2]);
 
-				positions->data.push_back(px);
-				positions->data.push_back(py);
-				positions->data.push_back(pz);
-
-				velocities->data.push_back(vx);
-				velocities->data.push_back(vy);
-				velocities->data.push_back(vz);
 			}
+			ParticleModel t;
+			t["positions"] = positions;
+			t["velocities"] = velocities;
+			timesteps.push_back(t);
 		}
 	}
-	std::cout << "Loaded " << num_particles << " particles\n";
-	model["positions"] = positions;
-	model["velocities"] = velocities;
+	std::cout << "Loaded " << num_particles << " particles, over "
+		<< timesteps.size() << " timesteps\n";
 }
 

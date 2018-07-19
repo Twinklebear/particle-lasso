@@ -17,7 +17,8 @@ void import_particle_lasso(std::shared_ptr<Node> world, const ospcommon::FileNam
 
 	// TODO: We need to tweak the radius based on the file (e.g., scivis contest should be
 	// a lot smaller radius than 1)
-	pl::ParticleModel model = pl::lasso_particles(file_name.str());
+	std::vector<pl::ParticleModel> timesteps = pl::lasso_particles(file_name.str());
+	auto &model = timesteps[0];
 	auto geom = createNode(file_name.str(), "Spheres")->nodeAs<Spheres>();
 	geom->createChild("bytes_per_sphere", "int", int(sizeof(float) * 3));
 	geom->createChild("offset_center", "int", int(0));
