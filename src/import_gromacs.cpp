@@ -17,6 +17,9 @@ void pl::import_gromacs(const FileName &file_name, std::vector<ParticleModel> &t
 	size_t num_particles = 0;
 	while (std::getline(fin, line)) {
 		const bool new_timestep = starts_with(line, "Generated");
+		if (new_timestep && timesteps.size() >= 32) {
+			break;
+		}
 		if (new_timestep) {
 			auto fnd = line.find("=");
 			time = std::stof(line.substr(fnd + 1));
