@@ -11,9 +11,8 @@
 using namespace pl;
 using namespace tinyxml2;
 
-struct UintahParticle {
-	float x, y, z;
-	std::unordered_map<std::string, float> attribs;
+struct UintahPatch {
+	vec3f lower;
 };
 
 bool uintah_is_big_endian = false;
@@ -78,7 +77,7 @@ float ntohf(float f){
 	return ret;
 }
 bool read_particles(const FileName &file_name, Data *pos_data, const size_t num_particles,
-		const size_t start, const size_t end){
+		const size_t start, const size_t end) {
 	auto *positions = dynamic_cast<DataT<float>*>(pos_data);
 	assert(positions);
 	// TODO: Would mmap'ing the file at the start and keeping each new file we encounter
@@ -145,7 +144,9 @@ bool read_particle_attribute(const FileName &file_name, Data *attrib_data, const
 			[](const In &t){ return static_cast<Out>(t); });
 	return true;
 }
-bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, ParticleModel &model){
+bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem,
+		ParticleModel &model)
+{
 	std::string type;
 	{
 		const char *type_attrib = elem->Attribute("type");
@@ -218,15 +219,19 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 		}
 	}
 	if (num_particles > 0){
+		if (variable == "p.x") {
+			variable = "positions";
+		}
 		const bool need_new_array = model.find(variable) == model.end();
 		// Particle positions are p.x, rename them to position when we load them
 		// TODO: This should handle arbitrary ParticleVariable<Point> types
-		if (variable == "p.x"){
+		if (variable == "positions"){
 			if (need_new_array) {
+				std::cout << "new positions array\n";
 				model["positions"] = std::make_shared<DataT<float>>();
 			}
-			return read_particles(base_path.join(FileName(file_name)), model[variable].get(),
-						num_particles, start, end);
+			return read_particles(base_path.join(FileName(file_name)),
+					model["positions"].get(), num_particles, start, end);
 		} else if (type == "ParticleVariable<double>"){
 			if (need_new_array) {
 				model[variable] = std::make_shared<DataT<double>>();
@@ -249,21 +254,8 @@ bool read_uintah_particle_variable(const FileName &base_path, XMLElement *elem, 
 	}
 	return true;
 }
-bool read_uintah_datafile(const FileName &file_name, ParticleModel &model){
-	XMLDocument doc;
-	XMLError err = doc.LoadFile(file_name.file_name.c_str());
-	if (err != XML_SUCCESS){
-		std::cout << "Error loading Uintah data file '" << file_name << "': "
-			<< tinyxml_error_string(err) << "\n";
-		return false;
-	}
+bool read_uintah_datafile(const FileName &file_name, XMLDocument &doc, ParticleModel &model){
 	XMLElement *node = doc.FirstChildElement("Uintah_Output");
-	if (!node){
-		std::cout << "No 'Uintah_Output' root XML node found in data file '"
-			<< file_name << "'\n";
-		return false;
-	}
-
 	const static std::string VAR_TYPE = "ParticleVariable";
 	for (XMLNode *c = node->FirstChild(); c; c = c->NextSibling()){
 		if (std::string(c->Value()) != "Variable"){
@@ -300,7 +292,26 @@ bool read_uintah_timestep_meta(XMLNode *node){
 	}
 	return true;
 }
-bool read_uintah_timestep_data(const FileName &base_path, XMLNode *node, ParticleModel &model){
+bool read_uintah_patches(XMLNode *node, std::vector<UintahPatch> &patches) {
+	// TODO: How to deal with multiple levels?
+	for (XMLNode *c = node->FirstChild(); c; c = c->NextSibling()){
+		if (std::string(c->Value()) == "Level") {
+			for (XMLNode *p = c->FirstChild(); p; p = p->NextSibling()) {
+				if (std::string(p->Value()) == "Patch") {
+					UintahPatch patch;
+					XMLElement *lower_elem = p->FirstChildElement("lower");
+					std::sscanf(lower_elem->GetText(), "[%f, %f, %f]",
+							&patch.lower.x, &patch.lower.y, &patch.lower.z);
+					patches.push_back(patch);
+				}
+			}
+		}
+	}
+	return true;
+}
+bool read_uintah_timestep_data(const FileName &base_path, XMLNode *node,
+		ParticleModel &model)
+{
 	for (XMLNode *c = node->FirstChild(); c; c = c->NextSibling()){
 		if (std::string(c->Value()) == "Datafile"){
 			XMLElement *e = c->ToElement();
@@ -314,7 +325,15 @@ bool read_uintah_timestep_data(const FileName &base_path, XMLNode *node, Particl
 				return false;
 			}
 			FileName data_file = base_path.join(FileName(std::string(href)));
-			if (!read_uintah_datafile(data_file, model)){
+			std::cout << "Reading " << data_file << "\n";
+			XMLDocument doc;
+			XMLError err = doc.LoadFile(data_file.file_name.c_str());
+			if (err != XML_SUCCESS){
+				std::cout << "Error loading Uintah data file '" << data_file << "': "
+					<< tinyxml_error_string(err) << "\n";
+				return false;
+			}
+			if (!read_uintah_datafile(data_file, doc, model)){
 				std::cout << "Error reading Uintah data file " << data_file << "\n";
 				return false;
 			}
@@ -323,27 +342,51 @@ bool read_uintah_timestep_data(const FileName &base_path, XMLNode *node, Particl
 	return true;
 }
 bool read_uintah_timestep(const FileName &file_name, XMLElement *node, ParticleModel &model){
+	std::vector<UintahPatch> patches;
 	for (XMLNode *c = node->FirstChild(); c; c = c->NextSibling()){
-		if (std::string(c->Value()) == "Meta"){
+		std::cout << c->Value() << "\n" << std::flush;
+		const std::string node_type = c->Value();
+		if (node_type == "Meta") {
 			if (!read_uintah_timestep_meta(c)){
 				return false;
 			}
-		} else if (std::string(c->Value()) == "Data"){
-			if (!read_uintah_timestep_data(file_name.path(), c, model)){
-				return false;
-			}
 		}
+	}
+	XMLNode *c = node->FirstChildElement("Data");
+	if (!c || !read_uintah_timestep_data(file_name.path(), c, model)){
+		return false;
 	}
 	return true;
 }
 
 void pl::import_uintah(const FileName &file_name, ParticleModel &model){
 	std::cout << "Importing Uintah data from " << file_name << "\n";
-	if (!read_uintah_datafile(file_name, model)) {
-		std::cout << "Error reading Uintah data\n";
+	XMLDocument doc;
+	XMLError err = doc.LoadFile(file_name.file_name.c_str());
+	if (err != XML_SUCCESS){
+		std::cout << "Error loading Uintah data file '" << file_name << "': "
+			<< tinyxml_error_string(err) << "\n";
+		throw std::runtime_error("Failed to open XML file");
+	}
+	if (doc.FirstChildElement("Uintah_timestep")) {
+		if (!read_uintah_timestep(file_name, doc.FirstChildElement("Uintah_timestep"), model)) {
+			std::cout << "Error reading Uintah timestep\n";
+			throw std::runtime_error("Failed to read Uintah timestep");
+		}
+	} else if (doc.FirstChildElement("Uintah_Output")) {
+		if (!read_uintah_datafile(file_name, doc, model)) {
+			std::cout << "Error reading Uintah Output\n";
+			throw std::runtime_error("Failed to read Uintah output");
+		}
+	} else {
+		std::cout << "Unrecognized UDA XML file!\n";
 		throw std::runtime_error("Failed to read Uintah data");
 	}
-	auto positions = dynamic_cast<DataT<float>*>(model["positions"].get());
-	std::cout << "Read Uintah data with " << positions->data.size() / 3 << " particles\n";
+	if (model.find("positions") != model.end()) {
+		auto positions = dynamic_cast<DataT<float>*>(model["positions"].get());
+		std::cout << "Read Uintah data with " << positions->data.size() / 3 << " particles\n";
+	} else {
+		std::cout << "Warning! File " << file_name << " contained no particles\n";
+	}
 }
 

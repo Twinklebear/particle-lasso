@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "particle_lasso.h"
 #include "ospcommon/xml/XML.h"
+#include "sg/common/Data.h"
 #include "sg/importer/Importer.h"
 #include "sg/geometry/Spheres.h"
 #include "sg/common/Common.h"
@@ -19,10 +20,14 @@ void import_particle_lasso(std::shared_ptr<Node> world, const ospcommon::FileNam
 	// a lot smaller radius than 1)
 	std::vector<pl::ParticleModel> timesteps = pl::lasso_particles(file_name.str());
 	auto &model = timesteps[0];
+	if (model.find("positions") == model.end()) {
+		std::cout << "No particles in file: " << file_name << "\n";
+		return;
+	}
 	auto geom = createNode(file_name.str(), "Spheres")->nodeAs<Spheres>();
 	geom->createChild("bytes_per_sphere", "int", int(sizeof(float) * 3));
 	geom->createChild("offset_center", "int", int(0));
-	geom->createChild("radius", "float", 1.f);
+	geom->createChild("radius", "float", 0.0015f);
 
 	// TODO: Colormap the particles by their attribute using an sg::TransferFunction
 	// then we can just store the color as an RGBA8 attribute. This is
