@@ -1,14 +1,19 @@
 option(PARTICLE_LASSO_ENABLE_LIDAR "Build Lidar data support, via LAStools" OFF)
 
 set(LASSO_SRC import_scivis16.cpp import_xyz.cpp
-	import_uintah.cpp tinyxml2.cpp types.cpp
-	import_cosmic_web.cpp import_pkd.cpp
+	import_uintah.cpp
+    tinyxml2.cpp
+    types.cpp
+	import_cosmic_web.cpp
+    import_pkd.cpp
 	import_gromacs.cpp
-	particle_lasso.cpp)
+	particle_lasso.cpp
+    import_libbat_bpf.cpp)
 
 set(LASSO_HEADERS import_scivis16.h import_xyz.h
 	import_uintah.h tinyxml2.h types.h particle_lasso.h
-	import_cosmic_web.h import_pkd.h import_gromacs.h)
+	import_cosmic_web.h import_pkd.h import_gromacs.h
+    import_libbat_bpf.h json.hpp)
 
 configure_file(particle_lasso_cfg.h.in particle_lasso_cfg.h)
 
@@ -55,6 +60,14 @@ install(EXPORT particle_lassoConfig
 add_executable(point_to_raw point_to_raw.cpp)
 target_link_libraries(point_to_raw particle_lasso)
 set_target_properties(point_to_raw
+	PROPERTIES
+	CXX_STANDARD 14
+	CXX_STANDARD_REQUIRED ON
+	POSITION_INDEPENDENT_CODE ON)
+
+add_executable(point_to_duong_vtu point_to_duong_vtu.cpp)
+target_link_libraries(point_to_duong_vtu particle_lasso)
+set_target_properties(point_to_duong_vtu
 	PROPERTIES
 	CXX_STANDARD 14
 	CXX_STANDARD_REQUIRED ON
