@@ -27,6 +27,8 @@ target_include_directories(particle_lasso PUBLIC
 if (PARTICLE_LASSO_ENABLE_LIDAR)
 	target_include_directories(particle_lasso PUBLIC ${LASTOOLS_INCLUDE_DIRS})
 	target_link_libraries(particle_lasso PUBLIC ${LASTOOLS_LIBRARIES})
+    target_compile_definitions(particle_lasso PUBLIC
+        -DPARTICLE_LASSO_ENABLE_LIDAR=1)
 endif()
 
 set_target_properties(particle_lasso
@@ -49,4 +51,12 @@ install(FILES
 install(EXPORT particle_lassoConfig
 	DESTINATION lib/cmake/particle_lasso
 )
+
+add_executable(point_to_raw point_to_raw.cpp)
+target_link_libraries(point_to_raw particle_lasso)
+set_target_properties(point_to_raw
+	PROPERTIES
+	CXX_STANDARD 14
+	CXX_STANDARD_REQUIRED ON
+	POSITION_INDEPENDENT_CODE ON)
 

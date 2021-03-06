@@ -9,23 +9,26 @@
 #include "import_uintah.h"
 #include "import_xyz.h"
 #include "import_scivis16.h"
+#include "import_pkd.h"
+
+using namespace pl;
 
 int main(int argc, char **argv){
 	if (argc < 3){
-		std::cout << "Usage: point_to_raw input.(las|laz|xml|xyz|vtu) <output>.raw\n"
+		std::cout << "Usage: point_to_raw input.(las|laz|xml|xyz|vtu|pkd) <output>.raw\n"
+#if PARTICLE_LASSO_ENABLE_LIDAR
 			<< "     (las|laz) - LIDAR data\n"
+#endif
 			<< "     xml       - Uintah data\n"
 			<< "     xyz       - XYZ atomic data\n"
+			<< "     pkd       - PKD data\n"
 			<< "     vtu       - SciVis16 contest data\n";
 		return 1;
 	}
 	ParticleModel model;
 	std::vector<std::string> args{argv, argv + argc};
 	FileName input(args[1]);
-	if (input.extension() == "las" || input.extension() == "laz"){
-		std::cout << "Converting LIDAR data\n";
-		import_las(input, model);
-	} else if (input.extension() == "xml"){
+    if (input.extension() == "xml"){
 		std::cout << "Converting Uintah data\n";
 		import_uintah(input, model);
 	} else if (input.extension() == "xyz"){
@@ -34,7 +37,17 @@ int main(int argc, char **argv){
 	} else if (input.extension() == "vtu"){
 		std::cout << "Converting SciVis16 data\n";
 		import_scivis16(input, model);
+	} else if (input.extension() == "pkd") {
+		std::cout << "Converting PKD data\n";
+		import_pkd(input, model);
+    }
+#if PARTICLE_LASSO_ENABLE_LIDAR
+    else if (input.extension() == "las" || input.extension() == "laz"){
+		std::cout << "Converting LIDAR data\n";
+		import_las(input, model);
 	}
+#endif
+
 	if (model.empty()){
 		std::cout << "Error: No data loaded\n";
 		return 1;
